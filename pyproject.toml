@@ -1,0 +1,38 @@
+[project]
+name = "loopback"
+version = "0.1.0"
+description = "终端里的多 agent 学习系统：自学 Claude Code / Codex 与 agent 演进"
+readme = "README.md"
+authors = [{ name = "nickmyb" }]
+license = "MIT"
+requires-python = ">=3.14"
+dependencies = [
+    "anthropic>=1.13.0",
+    "python-dotenv>=1.2.4",
+]
+
+[project.scripts]
+loopback = "loopback.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+# RUF001-003: Chinese full-width punctuation in strings/comments is intentional.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# secrets
+.env
+
+# personal state: progress, reading list, glossary, lessons, fetched sources, event logs
+# (docs/decisions.md D6; relocate with LOOPBACK_HOME)
+workspace/
