@@ -6,7 +6,7 @@
 - **旁支问题**：学习中冒出的新问题交给“助教”回答，不打断主线，也不占用主 agent 的上下文。
 - **效果可度量**：自带 evals，“讲得好不好”用数据说话，不靠感觉。
 
-> 当前状态：**M3c**：终端里逐节学习、项目自学、轨迹查看；也可以在 Claude Code 里用 `/learn` 学（走订阅）。路线图见 [docs/plan.md](docs/plan.md)，设计决策见 [docs/decisions.md](docs/decisions.md)，学习材料见 [docs/agent-evolution.md](docs/agent-evolution.md)。
+> 当前状态：**M3b**：逐节学习并生成 HTML 课件（原文对照、mermaid、分步动画、自测题），项目自学，轨迹查看；终端 REPL 和 Claude Code（`/learn`，走订阅）两种用法。路线图见 [docs/plan.md](docs/plan.md)，设计决策见 [docs/decisions.md](docs/decisions.md)，学习材料见 [docs/agent-evolution.md](docs/agent-evolution.md)。
 
 ## 快速开始
 

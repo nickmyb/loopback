@@ -18,6 +18,7 @@ import anthropic
 from loopback.agents import AgentSpec
 from loopback.config import Settings
 from loopback.curriculum import Curriculum, Progress
+from loopback.feedback import record_feedback
 from loopback.learning import next_message, status_text
 from loopback.llm import LLM
 from loopback.loop import run_turn
@@ -72,11 +73,35 @@ def run(app: App) -> None:
             last = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else None
             print(render_text(build_trace(app.session.events), last=last))
         elif line in ("next", "n"):
+            before = _position(app.progress)
             message = next_message(app.curriculum, app.progress)
             print(f"（next → {message}）")
             ask_teacher(app, message)
+            ask_rating(app, before)
         else:
             ask_teacher(app, line)
+
+
+def _position(progress: Progress) -> tuple[str | None, int]:
+    """当前在学哪个条目、学到第几节。"""
+    current = progress.current
+    return current, progress.state(current)["section"] if current else 0
+
+
+def ask_rating(app: App, before: tuple[str | None, int]) -> None:
+    """这一轮里进度往前走了一节，就请学习者打个分（回车跳过）；分数写进 feedback.jsonl。"""
+    item, section = _position(app.progress)
+    if item is None or item != before[0] or section <= before[1]:
+        return
+    try:
+        answer = input(f"这一节（{item} 第 {section} 节）打几分？1-5，可加一句意见，回车跳过 > ")
+    except EOFError, KeyboardInterrupt:
+        print()
+        return
+    answer = answer.strip()
+    if answer[:1] in "12345" and answer:
+        record_feedback(app.settings.home, item, section, int(answer[0]), answer[1:].strip())
+        print("（已记录，谢谢）")
 
 
 def ask_teacher(app: App, text: str) -> None:

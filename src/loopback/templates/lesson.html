@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+  /* 颜色都用变量定义，深色模式只换变量 */
+  :root {
+    --bg: #fbfaf7; --panel: #ffffff; --text: #1f2328; --muted: #6b7280; --line: #e6e2d8;
+    --accent: #c2410c; --accent-soft: #fff1e6; --orig: #f6f4ee; --code: #f3f1ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a; --panel: #1e1f23; --text: #e6e6e6; --muted: #9aa0a6; --line: #2e3036;
+      --accent: #fb923c; --accent-soft: #2a1d14; --orig: #1a1b1f; --code: #26272c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.75 system-ui, "Noto Sans CJK SC", "PingFang SC", sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; }
+  header h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  header .sub { color: var(--muted); font-size: .92rem; }
+  nav.pager { display: flex; justify-content: space-between; gap: 12px; margin: 16px 0 24px;
+              font-size: .92rem; }
+  nav.pager a { color: var(--accent); text-decoration: none; }
+  section.block { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+                  padding: 16px 20px; margin: 14px 0; }
+  /* 逐段讲解：宽屏左右并排（左原文、右讲解），窄屏上下排列 */
+  section.explain { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  section.explain:has(.original pre) { grid-template-columns: 3fr 2fr; }  /* 讲代码时原文更宽 */
+  @media (max-width: 760px) {
+    section.explain, section.explain:has(.original pre) { grid-template-columns: 1fr; }
+  }
+  .mermaid-error { color: var(--muted); font-size: .85rem; text-align: left; }
+  .original { background: var(--orig); border-radius: 8px; padding: 10px 14px; font-size: .92rem;
+              overflow-x: auto; }
+  .original img { max-width: 100%; }
+  .original pre { white-space: pre-wrap; overflow-wrap: anywhere; }  /* 长行自动换行，不用横向滚动 */
+  .pnum { color: var(--accent); font-weight: 700; font-size: .8rem; letter-spacing: .05em; }
+  .note { border-left: 4px solid var(--accent); background: var(--accent-soft); }
+  pre { background: var(--code); padding: 10px 12px; border-radius: 8px; overflow-x: auto;
+        font-size: .85rem; line-height: 1.5; }
+  code { font-family: ui-monospace, "JetBrains Mono", monospace; }
+  .figure { text-align: center; overflow-x: auto; }
+  .figure svg { max-width: 100%; height: auto; }
+  .caption { color: var(--muted); font-size: .9rem; margin-top: 6px; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details.quiz summary::before { content: "🤔 "; }
+  details.deeper summary::before { content: "🔍 深入一点："; }
+  .steps .frame { display: none; }
+  .steps .frame.active { display: block; }
+  .steps .controls { display: flex; gap: 8px; justify-content: center; align-items: center;
+                     margin-top: 10px; }
+  .steps button { border: 1px solid var(--line); background: var(--panel); color: var(--text);
+                  border-radius: 8px; padding: 4px 12px; cursor: pointer; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 32px; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+<header><h1>{{TITLE}}</h1><div class="sub">{{SUBTITLE}}</div></header>
+{{NAV}}
+{{BODY}}
+{{NAV}}
+<footer>{{FOOTER}}</footer>
+</main>
+<script type="module">
+  // 1) 先渲染所有 mermaid 图（隐藏状态下渲染会得到 0 宽度，所以要在分步播放器隐藏帧之前做）
+  try {
+    const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default", securityLevel: "strict" });
+    // 先逐个检查语法：有错的图降级成“源码 + 提示”，不让一张坏图显示成报错图标
+    for (const el of document.querySelectorAll(".mermaid")) {
+      try { await mermaid.parse(el.textContent); }
+      catch (e) {
+        el.className = "mermaid-error";
+        el.textContent = "这张图有语法错误，暂时显示源码：\n\n" + el.textContent;
+      }
+    }
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    console.warn("mermaid 加载失败（离线？），图以源码显示", e);
+  }
+  // 2) 分步播放器：一次显示一帧，支持上一步 / 下一步 / 自动播放
+  for (const box of document.querySelectorAll(".steps")) {
+    const frames = [...box.querySelectorAll(".frame")];
+    const label = box.querySelector(".pos");
+    let i = 0, timer = null;
+    const show = (n) => {
+      i = (n + frames.length) % frames.length;
+      frames.forEach((f, k) => f.classList.toggle("active", k === i));
+      label.textContent = `${i + 1} / ${frames.length}`;
+    };
+    box.querySelector(".prev").onclick = () => show(i - 1);
+    box.querySelector(".next").onclick = () => show(i + 1);
+    box.querySelector(".play").onclick = (ev) => {
+      if (timer) { clearInterval(timer); timer = null; ev.target.textContent = "▶ 自动播放"; return; }
+      timer = setInterval(() => show(i + 1), 2500);
+      ev.target.textContent = "⏸ 暂停";
+    };
+    show(0);
+  }
+</script>
+</body>
+</html>

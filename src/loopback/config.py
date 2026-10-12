@@ -41,6 +41,7 @@ class Settings:
     effort: str
     log_level: str
     profile: Profile
+    open_browser: bool = True  # 生成课件后自动在浏览器打开
 
     @property
     def provider(self) -> str:
@@ -77,6 +78,7 @@ class Settings:
             effort=effort,
             log_level=log_level,
             profile=profile,
+            open_browser=_flag(env, "LOOPBACK_OPEN_BROWSER", default=True),
         )
 
 

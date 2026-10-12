@@ -17,14 +17,15 @@ def call(home: Path, steps):
     """起一个 server，按顺序执行 steps（每步是 client -> awaitable），返回各步结果。"""
 
     async def main():
-        server = build_server(Settings.from_env({"LOOPBACK_HOME": str(home)}))
+        env = {"LOOPBACK_HOME": str(home), "LOOPBACK_OPEN_BROWSER": "0"}
+        server = build_server(Settings.from_env(env))
         async with Client(server) as client:
             return [await step(client) for step in steps]
 
     return anyio.run(main)
 
 
-def test_lists_the_learning_tools_plus_next_step(tmp_path: Path) -> None:
+def test_lists_the_teacher_tools_plus_next_step(tmp_path: Path) -> None:
     [tools] = call(tmp_path, [lambda c: c.list_tools()])
     names = sorted(t.name for t in tools.tools)
     assert names == [
@@ -33,6 +34,8 @@ def test_lists_the_learning_tools_plus_next_step(tmp_path: Path) -> None:
         "find_material",
         "next_step",
         "read_section",
+        "record_feedback",
+        "render_lesson",
         "update_progress",
     ]
     find = next(t for t in tools.tools if t.name == "find_material")

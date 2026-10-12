@@ -6,10 +6,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
+from pathlib import Path
 
 from loopback.curriculum import Curriculum, Progress
+from loopback.feedback import feedback_tool
 from loopback.library import Library, outline, render_section
+from loopback.render import LessonRenderer, lesson_tool
 from loopback.tools import Tool, ToolError
 
 _ITEM = {"type": "string", "description": "Curriculum item id, e.g. 'ae-04'."}
@@ -133,3 +137,19 @@ def next_step_tool(curriculum: Curriculum, progress: Progress) -> Tool:
         {"type": "object", "properties": {}},
         lambda: next_message(curriculum, progress),
     )
+
+
+def teacher_tools(
+    home: Path,
+    curriculum: Curriculum,
+    progress: Progress,
+    library: Library,
+    open_page: Callable[[Path], None] = lambda _p: None,
+) -> list[Tool]:
+    """教师的全部工具：学习类 5 个 + 课件 render_lesson + 反馈 record_feedback。两个前端共用。"""
+    renderer = LessonRenderer(home, library, open_page)
+    return [
+        *learning_tools(curriculum, progress, library),
+        lesson_tool(renderer),
+        feedback_tool(home),
+    ]

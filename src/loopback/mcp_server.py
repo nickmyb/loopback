@@ -22,8 +22,9 @@ from mcp.server.stdio import stdio_server
 from loopback import __version__
 from loopback.config import Settings
 from loopback.curriculum import Curriculum, Progress
-from loopback.learning import learning_tools, next_step_tool
+from loopback.learning import next_step_tool, teacher_tools
 from loopback.library import Library
+from loopback.render import open_in_browser
 from loopback.tools import ToolSet
 
 log = logging.getLogger(__name__)
@@ -40,8 +41,12 @@ def build_server(settings: Settings) -> Server[Any]:
     curriculum = Curriculum.load()
     progress = Progress(settings.home)
     library = Library(settings.home, curriculum)
+    opener = open_in_browser if settings.open_browser else (lambda _p: None)
     tools = ToolSet(
-        [*learning_tools(curriculum, progress, library), next_step_tool(curriculum, progress)]
+        [
+            *teacher_tools(settings.home, curriculum, progress, library, opener),
+            next_step_tool(curriculum, progress),
+        ]
     )
 
     async def on_list_tools(ctx: Any, params: Any) -> types.ListToolsResult:

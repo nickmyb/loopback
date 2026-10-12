@@ -190,3 +190,21 @@
   - 两个前端可能交替写 `progress.json`，所以每次工具调用前都先重新读一遍。
 - **限制**：Claude Code 模式下没有我们的事件日志和 `/trace`，对话记录由 Claude Code 保存在 `~/.claude/projects/` 下。
 - **面试怎么讲**：核心能力与 harness 解耦，再用 MCP 把同一套工具接到不同的 agent loop 上，这正是 MCP 标准化工具连接的意义（演进清单 #7、#45）。
+
+## D21 HTML 课件：教师出内容块，代码负责排版
+
+- **决策**：`render_lesson(item_id, page, title, blocks)`（render.py 管整页，blocks.py 管单个块）生成 `workspace/lessons/<id>/` 下的页面（overview、sNN、summary），以及目录页 index。
+  - 块的类型有 8 种：explain、text、note、mermaid、svg、steps、quiz、deeper。
+  - **explain**：原文由代码按段号插入，模型只写讲解，不用重抄原文。
+  - **转义**：模型写的文本按 markdown 渲染，原始 HTML 一律转义。
+  - **SVG**：先消毒，去掉 script、外链、事件属性，并防 XXE。
+- **mermaid 三层防线**（来自冒烟时的真实失败：prompt 里写着“节点文字一律加引号”，导致 mindmap 报语法错误）：
+  1. **prompt**：按图的类型分别写规则。
+  2. **渲染前 lint**：拦下已知的坏写法，用 `ToolError` 让模型当场改。
+  3. **浏览器端降级**：语法错误的图显示源码加提示，不显示报错图标。
+- **两个配套改动**：
+  - **代码节**：原文和讲解按 3:2 分栏，长行自动换行。
+  - **反馈**：每节打 1 到 5 分，存进 `feedback.jsonl`。REPL 会主动问；Claude Code 里由教师调用 `record_feedback` 记录。
+- **课件规范放进 system prompt，暂不做 SkillLoader**：每一节都要用到课件规范，按需加载没有收益。以后有真正“按需才用”的知识（如面试题、范例库）时再做两层加载。
+- **学习时“不改文件”靠权限保证**：`/learn` skill 设置了 `disallowed-tools: Edit Write NotebookEdit`（D8：靠权限，不靠 prompt）。
+- **面试怎么讲**：模型负责判断，代码负责确定性的事（D9）；生成式输出要有校验、自我修正和降级，三层兜底。
