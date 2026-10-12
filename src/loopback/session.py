@@ -49,6 +49,7 @@ class Session:
         return cls(path, events)
 
     def append(self, type_: str, **data: Any) -> dict[str, Any]:
+        """追加一个事件：带上版本号和时间戳，写一行 JSON 并 fsync，确认落盘后才返回。"""
         event = {"v": SCHEMA_VERSION, "type": type_, "ts": datetime.now(UTC).isoformat(), **data}
         line = json.dumps(event, ensure_ascii=False, separators=(",", ":"))
         with self.path.open("a", encoding="utf-8") as f:
@@ -84,6 +85,7 @@ class Session:
         return [b["id"] for b in msgs[-1]["content"] if b.get("type") == "tool_use"]
 
     def usage_totals(self) -> dict[str, int]:
+        """累加所有 assistant 事件的 token 用量（只统计整数字段）。"""
         totals: dict[str, int] = {}
         for ev in self.events:
             if ev["type"] == "assistant":
@@ -109,6 +111,7 @@ def _retracted_user_events(events: list[dict[str, Any]]) -> set[int]:
 
 
 def _blocks_of(ev: dict[str, Any]) -> list[dict[str, Any]]:
+    """把一个事件转成消息内容块：tool_results 取出结果块；字符串输入包成 text 块。"""
     if ev["type"] == "tool_results":
         return list(ev["results"])
     content = ev["content"]

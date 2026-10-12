@@ -32,6 +32,7 @@ class Extracted:
 
 
 def extract(body: str, url: str, content_type: str = "") -> Extracted:
+    """把抓到的页面变成 markdown 正文，并取出标题和日期。"""
     if _is_markdown(url, content_type):
         md = _strip_banner(body).strip()
         return Extracted(md, _md_title(md), None)
@@ -49,6 +50,7 @@ def extract(body: str, url: str, content_type: str = "") -> Extracted:
 
 
 def _is_markdown(url: str, content_type: str) -> bool:
+    """根据 URL 后缀或 Content-Type 判断返回的内容已经是 markdown 或纯文本。"""
     path = urlparse(url).path
     return path.endswith((".md", ".txt")) or content_type.startswith(
         ("text/markdown", "text/plain")
@@ -61,11 +63,13 @@ def _strip_banner(md: str) -> str:
 
 
 def _md_title(md: str) -> str | None:
+    """取 markdown 里第一个一级标题作为文档标题。"""
     m = re.search(r"^#\s+(.+)$", md, re.M)
     return m.group(1).strip() if m else None
 
 
 def _dense_container_markdown(html: str, url: str) -> str:
+    """找到段落文字最多的父元素当正文：清理噪音、补全链接和图片地址，再转成 markdown。"""
     doc = lxml.html.fromstring(html)
     weight: Counter = Counter()
     for p in doc.iter("p"):

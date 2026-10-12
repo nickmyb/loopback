@@ -14,6 +14,7 @@ MAX_READ_CHARS = 100_000
 
 
 def confine(root: Path, path: str) -> Path:
+    """把模型给的相对路径解析到工作区内；跳出工作区（..、绝对路径、软链接）就拒绝。"""
     root = root.resolve()
     target = (root / path).resolve()
     if not target.is_relative_to(root):
@@ -22,7 +23,10 @@ def confine(root: Path, path: str) -> Path:
 
 
 def workspace_tools(root: Path, *, writable: bool) -> list[Tool]:
+    """生成限定在工作区里的文件工具；writable=False 时不提供写文件。"""
+
     def read_file(path: str) -> str:
+        """读工作区里的一个文本文件（最多 MAX_READ_CHARS 个字符）。"""
         target = confine(root, path)
         if not target.is_file():
             raise ToolError(f"no such file: {path}")
@@ -30,6 +34,7 @@ def workspace_tools(root: Path, *, writable: bool) -> list[Tool]:
         return text[:MAX_READ_CHARS]
 
     def list_files(path: str = ".") -> str:
+        """列出工作区里某个目录下的条目。"""
         target = confine(root, path)
         if not target.is_dir():
             raise ToolError(f"no such directory: {path}")
@@ -37,6 +42,7 @@ def workspace_tools(root: Path, *, writable: bool) -> list[Tool]:
         return "\n".join(entries) or "(empty)"
 
     def write_file(path: str, content: str) -> str:
+        """写文件：先写临时文件再替换，保证不会留下写了一半的文件。"""
         target = confine(root, path)
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_name(target.name + ".tmp")

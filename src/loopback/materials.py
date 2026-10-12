@@ -32,10 +32,12 @@ class Section:
 
 
 def count_words(text: str) -> int:
+    """数词：英文按单词算，中文按字算。"""
     return len(_WORD.findall(text))
 
 
 def split_sections(md: str, base_url: str, doc_title: str | None = None) -> list[Section]:
+    """把 markdown 正文切成节：按标题分节、标题带层级路径、超长的节按段落再拆。"""
     raw: list[tuple[str, list[str]]] = []
     stack: list[tuple[int, str]] = []  # 当前所处的标题层级，例如 [(2, "A"), (3, "B")]
     title, paras = doc_title or "导言", []
@@ -89,12 +91,14 @@ def _blocks(md: str) -> list[str]:
 
 
 def _clean_heading(text: str) -> str:
+    """去掉标题里的锚点链接、链接语法和强调符号，只留文字。"""
     text = re.sub(r"\[​?\]\(#[^)]*\)", "", text)  # 文档站的锚点链接
     text = _LINK.sub(r"\1", text)
     return re.sub(r"[*_`]", "", text).strip(" #")
 
 
 def _chunk(paras: list[str]) -> list[list[str]]:
+    """按词数预算把一节的段落分组，每组不超过 MAX_SECTION_WORDS（单段超长时独占一组）。"""
     chunks: list[list[str]] = [[]]
     words = 0
     for p in paras:
@@ -108,6 +112,7 @@ def _chunk(paras: list[str]) -> list[list[str]]:
 
 
 def _build(index: int, title: str, paras: list[str], base_url: str) -> Section:
+    """组装 Section：收集本节外链（绝对化、去重、编号 L#）和配图（编号 I#），并统计词数。"""
     links, seen = [], set()
     images = [
         {"id": f"I{i}", "alt": alt, "src": urljoin(base_url, src)}
@@ -123,8 +128,10 @@ def _build(index: int, title: str, paras: list[str], base_url: str) -> Section:
 
 
 def sections_to_json(sections: list[Section]) -> list[dict[str, Any]]:
+    """把 Section 列表转成可写入 JSON 的字典列表（缓存用）。"""
     return [asdict(s) for s in sections]
 
 
 def sections_from_json(data: list[dict[str, Any]]) -> list[Section]:
+    """从缓存的 JSON 还原 Section 列表。"""
     return [Section(**s) for s in data]

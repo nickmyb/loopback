@@ -1,10 +1,59 @@
 # loopback 课程表（公共内容，进 git）。字段说明见 src/loopback/curriculum.py。
+# PJ：项目自学，学习材料就是本仓库的文件（url 以 repo: 开头，每次实时读取）。
 # L0：Claude Code / Codex 官方文档，按主题配对对比着学。
 # L2 / L3：docs/agent-evolution.md 中的 Anthropic 演进清单（由脚本生成，按清单顺序）。
 # 完整的分级课程（L1 经典论文、L4 / L5、Evals 主线）在 Phase 2 补齐。
 # must = ⭐ 必读；evals = 🧪 evals 主线。
 version: 1
 items:
+- id: repo-claude-md
+  title: 开发约定与不变量（CLAUDE.md）
+  url: repo:CLAUDE.md
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
+- id: repo-plan
+  title: 项目计划（docs/plan.md）
+  url: repo:docs/plan.md
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
+- id: repo-decisions
+  title: 设计决策记录（docs/decisions.md）
+  url: repo:docs/decisions.md
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
+- id: repo-loop
+  title: agent_loop：所有角色共用的循环（loop.py）
+  url: repo:src/loopback/loop.py
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
+- id: repo-session
+  title: 会话 = 只追加的事件日志（session.py）
+  url: repo:src/loopback/session.py
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
+- id: repo-tools
+  title: 工具注册表与错误处理（tools.py）
+  url: repo:src/loopback/tools.py
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
+- id: repo-llm
+  title: 模型调用层与请求构造（llm.py）
+  url: repo:src/loopback/llm.py
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
+- id: repo-trace
+  title: 轨迹：审计与 evals 的基础（trace.py）
+  url: repo:src/loopback/trace.py
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
 - id: cc-overview
   title: Claude Code overview
   url: https://code.claude.com/docs/en/overview.md

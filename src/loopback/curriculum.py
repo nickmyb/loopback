@@ -25,6 +25,7 @@ PROGRESS_VERSION = 1
 
 
 def _norm(text: str) -> str:
+    """统一成小写、去掉标点，方便做不区分大小写的模糊匹配。"""
     return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", " ", text.lower()).strip()
 
 
@@ -45,6 +46,7 @@ class Item:
     evals: bool = False  # 🧪 evals 主线
 
     def label(self) -> str:
+        """一行展示：[id] 标题 + ⭐/🧪 标记 +（级别 · 分组 · 日期）。"""
         flags = ("⭐" if self.must else "") + ("🧪" if self.evals else "")
         when = f" · {self.date}" if self.date else ""
         return f"[{self.id}] {self.title}{flags}（{self.level} · {self.group}{when}）"
@@ -57,6 +59,7 @@ class Curriculum:
 
     @classmethod
     def load(cls, path: Path | None = None) -> Curriculum:
+        """读取并校验课程表 YAML（默认读包内的 data/curriculum.yaml）；任何一条不合法就报错。"""
         text = (
             path.read_text(encoding="utf-8")
             if path
@@ -74,8 +77,12 @@ class Curriculum:
                 raise CurriculumError(f"重复的 id：{raw['id']}")
             if raw["kind"] not in KINDS:
                 raise CurriculumError(f"{raw['id']} 的 kind={raw['kind']!r} 不合法")
-            if not str(raw["url"]).startswith(("https://", "http://")):
-                raise CurriculumError(f"{raw['id']} 的 url 必须是 http(s)")
+            url = str(raw["url"])
+            if url.startswith("repo:"):  # 项目自学条目：仓库内的相对路径，不许 .. 和绝对路径
+                if url[5:].startswith("/") or ".." in Path(url[5:]).parts:
+                    raise CurriculumError(f"{raw['id']} 的 repo 路径必须是仓库内的相对路径")
+            elif not url.startswith(("https://", "http://")):
+                raise CurriculumError(f"{raw['id']} 的 url 必须是 http(s) 或 repo:")
             seen.add(raw["id"])
             items.append(Item(**{k: (str(v) if k == "date" else v) for k, v in raw.items()}))
         return cls(items)
@@ -121,6 +128,7 @@ class Progress:
         self.log: list[dict[str, Any]] = data.get("log", [])
 
     def state(self, item_id: str) -> dict[str, Any]:
+        """某个条目的进度；还没学过的返回 todo。"""
         return self.items.get(item_id, {"status": "todo", "section": 0})
 
     def update(
@@ -133,6 +141,7 @@ class Progress:
         summary: str | None = None,
         today: date | None = None,
     ) -> dict:
+        """更新进度并原子写盘：首次学习记为开始；可设当前节；done=True 时必须带一句话总结。"""
         day = (today or date.today()).isoformat()
         st = self.items.setdefault(item_id, {"status": "todo", "section": 0, "started": day})
         if st["status"] == "todo":
@@ -163,4 +172,5 @@ class Progress:
         return [i for i in ordered if self.state(i.id)["status"] != "done"][:k]
 
     def _log(self, day: str, item_id: str, event: str) -> None:
+        """往学习日志追加一条记录（日期、条目、事件）。"""
         self.log.append({"date": day, "item": item_id, "event": event})

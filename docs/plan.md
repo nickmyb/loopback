@@ -159,7 +159,8 @@ loopback/
 | **M0** | 工程骨架：<br>• src layout、pyproject（3.14，入口是 `loopback`）、uv.lock；<br>• ruff、pytest、CI；<br>• Settings 和 logging；<br>• CLAUDE.md、README、decisions.md | `uv run loopback` 能启动；CI 通过 |
 | **M1** | 核心运行时：<br>• `llm`、`session`（事件日志）、`tools`、`loop`、`agents`；<br>• 最小 REPL；<br>• caching 和 `/cost` | 能对话；FakeLLM 测试通过，覆盖 tool 配对、错误路径、中断补齐；第二轮起缓存命中 |
 | **M2** | 材料与状态：<br>• `materials`（切节、链接、原图）、`store`（原子写）；<br>• `curriculum.yaml` 初版，内容是官方文档加演进清单；<br>• fetch_material、read_section、progress 三个工具 | Building Effective Agents 生成 sections.json；golden 测试通过 |
-| **M3** | 教师主流程：<br>• skills 和 prompts 文件化；<br>• render 的核心块（explain、mermaid、svg、steps、note、quiz、deeper）；<br>• 概览 → next → 总结；<br>• 续学；<br>• 每节 1 到 5 分的反馈 | 一篇完整走通；重启后能续上；SVG 消毒的测试通过 |
+| **M3a ✅** | 可用版（2026-10-12 调整，D18、D19）：<br>• 轨迹工具：`/trace` 和 `loopback trace`；<br>• 项目自学分组：用 loopback 学 loopback；<br>• 启动时在本地显示进度，`next` 由 harness 定位下一节；<br>• REPL 从 cli.py 拆出；<br>• 每个函数补上“做什么”的注释 | 用 Claude 冒烟：学 loop.py，从概览到第 1 节，讲解时按行号讲；`/trace` 正常 |
+| **M3b** | 教师主流程（剩余部分）：<br>• skills 和 prompts 文件化；<br>• render 的核心块（explain、mermaid、svg、steps、note、quiz、deeper）；<br>• 概览 → next → 总结；<br>• 续学；<br>• 每节 1 到 5 分的反馈 | 一篇完整走通；重启后能续上；SVG 消毒的测试通过 |
 | **M4** | 助教：<br>• `?` 旁支对话、follow_link、`ask`；<br>• 官方接口时带 web_search | 隔离测试通过（确定性检查）；`?L2` 能讲清楚 |
 | **M5** | Evals 核心：<br>• runner、graders、judge、report；<br>• teacher 和 ta 两个套件，各约 15 题；<br>• 用你的打分校准评审；<br>• 跑出 baseline | oracle 和 null 基线符合预期；评审和你的一致率 ≥90%；baseline 报告带置信区间 |
 | — | **core 完成**，然后按第 3 节进入 Phase 2，再进入 Phase 3；工程化清单里的“后补”项穿插在其中完成 | — |

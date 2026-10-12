@@ -19,6 +19,7 @@ import httpx2
 from loopback.curriculum import Curriculum
 from loopback.extract import extract
 from loopback.materials import Section, sections_from_json, sections_to_json, split_sections
+from loopback.repo import repo_sections
 from loopback.store import read_json, write_json
 from loopback.tools import ToolError
 
@@ -34,6 +35,7 @@ class FetchResult:
 
 
 def http_fetch(url: str) -> FetchResult:
+    """下载一个 URL：跟随跳转、30 秒超时、带 User-Agent；HTTP 错误抛异常。"""
     headers = {"User-Agent": USER_AGENT}
     with httpx2.Client(follow_redirects=True, timeout=30.0, headers=headers) as client:
         r = client.get(url)
@@ -59,7 +61,12 @@ class Library:
         self._fetch = fetch
 
     def get(self, item_id: str) -> Material:
+        """取一篇材料：项目文件直接读仓库；其余依次尝试 缓存 -> 手动 source.md -> 联网抓取。"""
         item = self.curriculum.get(item_id)
+        if item.url.startswith("repo:"):  # 项目自学：文件一直在变，每次重新读，不缓存
+            return Material(
+                item_id, item.title, item.url, None, repo_sections(item.url, item.title)
+            )
         folder = self.root / item_id
         cached = read_json(folder / "sections.json", version=LIBRARY_VERSION)
         if cached:
@@ -99,6 +106,7 @@ class Library:
         return Material(item_id, title, item.url, date, sections)
 
     def _download(self, url: str) -> FetchResult:
+        """调用抓取函数，把网络和 HTTP 错误转成给模型看的 ToolError。"""
         try:
             return self._fetch(url)
         except httpx2.HTTPStatusError as e:
@@ -108,6 +116,7 @@ class Library:
 
 
 def outline(m: Material) -> str:
+    """生成材料大纲：标题、日期、节数和词数，每节一行（含链接数和配图数）。"""
     total = sum(s.words for s in m.sections)
     lines = [
         f"《{m.title}》 · {m.date or '日期未知'} · {len(m.sections)} 节 · 约 {total} 词",
@@ -122,6 +131,7 @@ def outline(m: Material) -> str:
 
 
 def render_section(m: Material, index: int) -> str:
+    """生成一节原文：段落带 [P#] 编号，附链接和配图列表，并用 <material> 包起来标成资料。"""
     if not 1 <= index <= len(m.sections):
         raise ToolError(f"{m.item_id} 只有 {len(m.sections)} 节，index 必须在 1..{len(m.sections)}")
     s = m.sections[index - 1]

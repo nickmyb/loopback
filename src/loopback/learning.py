@@ -16,6 +16,7 @@ _ITEM = {"type": "string", "description": "Curriculum item id, e.g. 'ae-04'."}
 
 
 def status_text(curriculum: Curriculum, progress: Progress, today: date | None = None) -> str:
+    """生成进度摘要：今天的日期、正在学的条目和节、接下来的建议、完成数。"""
     lines = [f"今天：{(today or date.today()).isoformat()}"]
     if progress.current:
         st, item = progress.state(progress.current), curriculum.by_id.get(progress.current)
@@ -31,9 +32,12 @@ def status_text(curriculum: Curriculum, progress: Progress, today: date | None =
 
 
 def learning_tools(curriculum: Curriculum, progress: Progress, library: Library) -> list[Tool]:
+    """构造教师的 5 个学习工具，它们共用同一份课程、进度和材料库。"""
+
     def update_progress(
         item_id: str, section: int | None = None, done: bool = False, summary: str | None = None
     ) -> str:
+        """校验节号范围后更新进度；总节数取自已经切好的材料。"""
         curriculum.get(item_id)
         n = len(library.get(item_id).sections)
         if section is not None and not 0 <= section <= n:
@@ -42,6 +46,7 @@ def learning_tools(curriculum: Curriculum, progress: Progress, library: Library)
         return f"{item_id}: {st['status']}, 第 {st['section']}/{n} 节"
 
     def find_material(query: str) -> str:
+        """按标题、关键词或 id 搜课程，返回带 id 和进度的候选列表。"""
         hits = curriculum.search(query)
         if not hits:
             return f"没有找到和 {query!r} 相关的条目"

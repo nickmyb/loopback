@@ -39,7 +39,11 @@ class Response:
 
 
 class LLM(Protocol):
-    def stream(self, request: dict[str, Any], on_text: OnText) -> Response: ...
+    """loop 唯一依赖的模型接口：生产用 AnthropicLLM，测试用 FakeLLM。"""
+
+    def stream(self, request: dict[str, Any], on_text: OnText) -> Response:
+        """发送请求并流式返回：每段文本回调 on_text，结束后返回完整的 Response。"""
+        ...
 
 
 def build_request(
@@ -51,6 +55,7 @@ def build_request(
     max_tokens: int,
     effort: str | None = None,
 ) -> dict[str, Any]:
+    """拼出 Messages API 请求：通用字段总是带上，缓存和 effort 只在官方接口时加。"""
     req: dict[str, Any] = {
         "model": settings.model,
         "max_tokens": max_tokens,
@@ -76,6 +81,7 @@ class AnthropicLLM:
         )
 
     def stream(self, request: dict[str, Any], on_text: OnText) -> Response:
+        """用 SDK 流式请求：边收边回调文本，最后把完整消息整理成 Response（content 原样保留）。"""
         t0 = time.monotonic()
         with self.client.messages.stream(**request) as s:
             for event in s:

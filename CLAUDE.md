@@ -24,7 +24,8 @@ uv run ruff check . && uv run ruff format --check .
 ## 代码约定
 
 - src layout：代码放在 `src/loopback/`。每个模块对应一个 agent 概念，单个文件不超过约 150 行。不引入 agent 框架。
-- 标识符用英文；模块的 docstring 和必要的注释用中文，并写清“为什么”。ASCII 图里只用英文。
+- 标识符用英文；docstring 和注释用中文。ASCII 图里只用英文。
+- **注释要说明代码具体做什么，方便 code review**：每个函数用一行注释或 docstring 说明它做什么；稍长或不直观的代码块，加一行步骤注释，说明“做什么、为什么”。写代码时同步写注释，不要事后补。显而易见的代码不加注释。
 - 配置只从 `Settings.from_env()` 读一次，然后显式传递，不在业务代码里读 `os.environ`。
 - Claude 专属能力（缓存参数、effort、fallback、web_search、读图）一律通过 `settings.profile` 判断，保证兼容接口也能跑。
 - 依赖随里程碑按需加，用 `uv add`。

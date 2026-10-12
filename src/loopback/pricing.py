@@ -19,6 +19,7 @@ PRICES: dict[str, tuple[float, float, float, float]] = {
 
 
 def estimate_usd(model: str, usage: dict[str, Any]) -> float | None:
+    """按价格表估算一次调用的美元花费；未知模型返回 None。"""
     price = PRICES.get(model)
     if price is None:
         return None
@@ -32,6 +33,7 @@ def estimate_usd(model: str, usage: dict[str, Any]) -> float | None:
 
 
 def cache_hit_rate(usage: dict[str, Any]) -> float:
+    """缓存命中率 = 缓存读 /（普通输入 + 缓存读 + 缓存写）。"""
     read = usage.get("cache_read_input_tokens", 0) or 0
     total = read + (usage.get("input_tokens", 0) or 0)
     total += usage.get("cache_creation_input_tokens", 0) or 0

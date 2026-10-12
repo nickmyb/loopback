@@ -44,12 +44,14 @@ class Settings:
 
     @property
     def provider(self) -> str:
+        """给人看的接口名称：官方显示“Anthropic 官方”，兼容接口显示域名。"""
         if self.profile.official:
             return "Anthropic 官方"
         return urlparse(self.base_url).hostname or "?"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
+        """从环境变量构建 Settings：判断是否官方接口、推导能力档案、校验 effort 和日志级别。"""
         env = os.environ if env is None else env
 
         base_url = env.get("ANTHROPIC_BASE_URL") or None
@@ -79,6 +81,7 @@ class Settings:
 
 
 def _flag(env: Mapping[str, str], name: str, *, default: bool) -> bool:
+    """把环境变量解析成布尔开关：没设置时用默认值，写错时报配置错误。"""
     raw = env.get(name)
     if raw is None or raw == "":
         return default

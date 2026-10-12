@@ -43,6 +43,7 @@ class Tool:
     read_only: bool = True
 
     def spec(self) -> dict[str, Any]:
+        """这个工具交给 API 的定义：name、description、input_schema。"""
         return {
             "name": self.name,
             "description": self.description,
@@ -56,6 +57,7 @@ class ToolResult:
     is_error: bool = False
 
     def block(self, tool_use_id: str) -> dict[str, Any]:
+        """转成 tool_result 块；只有出错时才带 is_error。"""
         b: dict[str, Any] = {
             "type": "tool_result",
             "tool_use_id": tool_use_id,
@@ -67,6 +69,7 @@ class ToolResult:
 
 
 def error(message: str) -> ToolResult:
+    """构造一个错误结果：is_error=True，并且正文以 "ERROR: " 开头。"""
     return ToolResult(f"ERROR: {message}", is_error=True)
 
 
@@ -81,18 +84,27 @@ class ToolSet:
 
     @property
     def names(self) -> list[str]:
+        """全部工具名（已按名字排序）。"""
         return list(self._tools)
 
     def specs(self) -> list[dict[str, Any]]:
+        """全部工具定义，按名字排序，保证每次请求字节一致、prompt 缓存能命中。"""
         return [t.spec() for t in self._tools.values()]
 
     def run(self, name: str, args: Any) -> ToolResult:
+        """执行一次工具调用。
+
+        未知工具、参数不合法、预期内失败、代码崩溃，都变成错误结果返回，从不抛异常。
+        """
+        # 1) 工具存在吗？不存在就把可用工具列出来，让模型自己改
         tool = self._tools.get(name)
         if tool is None:
             return error(f"unknown tool {name!r}; available: {', '.join(self._tools)}")
+        # 2) 参数符合 schema 吗？不符合就说清楚哪里不对
         problem = validate(tool.input_schema, args)
         if problem:
             return error(f"invalid input for {name}: {problem}")
+        # 3) 执行：ToolError 是预期内失败（原样告诉模型）；其他异常是工具的 bug（记日志）
         try:
             out = tool.handler(**args)
         except ToolError as e:
@@ -123,10 +135,12 @@ def validate(schema: dict[str, Any], args: Any) -> str | None:
 
 
 def _is_bool_for_number(value: Any, expected: type | tuple[type, ...]) -> bool:
+    """Python 里 bool 是 int 的子类；这里挡住用 true/false 冒充数字的输入。"""
     return isinstance(value, bool) and expected is not bool
 
 
 def _truncate(text: str) -> str:
+    """工具输出过长时截断，并注明截掉了多少字符，避免撑爆上下文。"""
     if len(text) <= MAX_RESULT_CHARS:
         return text
     return text[:MAX_RESULT_CHARS] + f"\n...[truncated {len(text) - MAX_RESULT_CHARS} chars]"

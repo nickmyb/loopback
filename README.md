@@ -6,7 +6,7 @@
 - **旁支问题**：学习中冒出的新问题交给“助教”回答，不打断主线，也不占用主 agent 的上下文。
 - **效果可度量**：自带 evals，“讲得好不好”用数据说话，不靠感觉。
 
-> 当前状态：**M0 工程骨架**。路线图见 [docs/plan.md](docs/plan.md)，设计决策见 [docs/decisions.md](docs/decisions.md)，学习材料见 [docs/agent-evolution.md](docs/agent-evolution.md)。
+> 当前状态：**M3a 可用版**：终端里逐节学习、项目自学、轨迹查看。路线图见 [docs/plan.md](docs/plan.md)，设计决策见 [docs/decisions.md](docs/decisions.md)，学习材料见 [docs/agent-evolution.md](docs/agent-evolution.md)。
 
 ## 快速开始
 
@@ -15,7 +15,8 @@
 ```bash
 uv sync                      # 安装依赖
 cp .env.example .env         # 填入 ANTHROPIC_API_KEY
-uv run loopback              # 启动
+uv run loopback              # 开始学习：输入 next 开始或继续，/help 查看命令
+uv run loopback trace        # 查看最近一次会话的轨迹
 ```
 
 想用 DeepSeek 等 Anthropic 兼容接口，在 `.env` 里设置 `ANTHROPIC_BASE_URL` 和 `MODEL_ID` 即可，见 `.env.example`。

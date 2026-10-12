@@ -10,7 +10,7 @@ def test_packaged_curriculum_is_valid() -> None:
     assert len(cur.items) >= 70
     assert len(cur.by_id) == len(cur.items)  # id 唯一
     assert {i.kind for i in cur.items} <= KINDS
-    assert cur.items[0].level == "L0"  # 先学官方文档
+    assert cur.items[0].level == "PJ"  # 先学项目自身，再学官方文档
     bea = cur.by_id["ae-04"]
     assert bea.title == "Building Effective Agents" and bea.must and bea.date == "2024-12"
     assert any(i.evals for i in cur.items)

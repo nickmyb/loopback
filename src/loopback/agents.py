@@ -33,6 +33,7 @@ class AgentSpec:
 
 
 def load_prompt(name: str) -> str:
+    """读取 src/loopback/prompts/<name>.md 作为 system prompt。"""
     return resources.files("loopback.prompts").joinpath(f"{name}.md").read_text(encoding="utf-8")
 
 

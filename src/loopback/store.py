@@ -18,6 +18,7 @@ class StoreError(RuntimeError):
 
 
 def write_json(path: Path, data: dict[str, Any], *, version: int) -> None:
+    """原子写 JSON：写同目录的临时文件并 fsync，再用 os.replace 替换。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps({"version": version, **data}, ensure_ascii=False, indent=2)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
