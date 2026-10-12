@@ -71,13 +71,21 @@ def build_request(
 
 
 class AnthropicLLM:
-    def __init__(self, settings: Settings, *, max_retries: int = 3, timeout: float = 600.0) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        api_key: str | None = None,
+        max_retries: int = 3,
+        timeout: float = 600.0,
+    ) -> None:
         dropped = sanitize_proxy_env(os.environ)
         if dropped:
             log.warning("ignored unsupported proxy env vars: %s", ", ".join(dropped))
         # 重试（429、5xx、连接错误）交给 SDK 自带的指数退避；api_key 等凭证由 SDK 从环境读取
+        # api_key=None 时由 SDK 从环境读取；evals 的评审可以显式传另一家接口的 key
         self.client = anthropic.Anthropic(
-            base_url=settings.base_url, max_retries=max_retries, timeout=timeout
+            api_key=api_key, base_url=settings.base_url, max_retries=max_retries, timeout=timeout
         )
 
     def stream(self, request: dict[str, Any], on_text: OnText) -> Response:

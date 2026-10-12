@@ -167,7 +167,7 @@ loopback/
 | **M3c ✅** | Claude Code 前端（D20）：<br>• `loopback mcp`：stdio MCP server，暴露同一份学习工具和 `next_step`；<br>• 项目 `.mcp.json`；<br>• `/learn` skill，注入 teacher.md；<br>• 助教用 side chat（`/btw`） | 在 Claude Code 里（Pro 订阅）用 `/learn next` 跑通：next_step → fetch_material → update_progress → 概览 |
 | **M3b ✅** | HTML 课件（D21）：<br>• `render_lesson` 支持 8 种块，原文按段号插入；<br>• SVG 消毒；<br>• mermaid 三层防线；<br>• 目录和翻页；<br>• 每节打分存进 `feedback.jsonl`；<br>• skill 设为只读 | Claude Code 冒烟：loop.py 的概览和第 1 节课件一次生成成功；无头 Chrome 截图确认图、分步播放、折叠块都能显示 |
 | **M4** | 助教：<br>• `?` 旁支对话、follow_link、`ask`；<br>• 官方接口时带 web_search | 隔离测试通过（确定性检查）；`?L2` 能讲清楚 |
-| **M5** | Evals 核心：<br>• runner、graders、judge、report；<br>• teacher 和 ta 两个套件，各约 15 题；<br>• 用你的打分校准评审；<br>• 跑出 baseline | oracle 和 null 基线符合预期；评审和你的一致率 ≥90%；baseline 报告带置信区间 |
+| **M5 🟡** | Evals 核心（D22）：<br>• `evals/` 包含 runner、graders、judge、stats、report、calibrate；<br>• teacher 套件 11 个用例（section、start、finish）；<br>• oracle 和 null 基线 | ✅ oracle 11/11、null 0/11；92 个单元测试通过<br>⏳ 付费 baseline（需要你确认花费）<br>⏳ 评审校准（需要你标注约 30 条，一致率 ≥90%） |
 | — | **core 完成**，然后按第 3 节进入 Phase 2，再进入 Phase 3；工程化清单里的“后补”项穿插在其中完成 | — |
 
 ---

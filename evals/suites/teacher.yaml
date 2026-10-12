@@ -1,0 +1,20 @@
+# 教师套件：度量“讲一节 / 按标题开始一篇 / 收尾总结”三类行为。
+# 材料选自已缓存、结构稳定的两篇（运行前会冻结快照，记录 hash）。
+# kind:
+#   section  进度停在第 section-1 节，输入由 harness 的 next 生成（和 REPL 的 next 完全一样）
+#   start    学习者用标题说要学哪篇（D17 回归：查找文章最多 1 次搜索 + 1 次抓取）
+#   finish   所有节都讲完，next 要求做总结并标记完成
+suite: teacher
+description: 教师讲解质量与流程正确性
+cases:
+  - {id: bea-s02-what-are-agents, item: ae-04, kind: section, section: 2, tags: [web, short]}
+  - {id: bea-s03-when-to-use, item: ae-04, kind: section, section: 3, tags: [web, short]}
+  - {id: bea-s06-augmented-llm, item: ae-04, kind: section, section: 6, tags: [web, image]}
+  - {id: bea-s07-prompt-chaining, item: ae-04, kind: section, section: 7, tags: [web, image]}
+  - {id: bea-s09-parallelization, item: ae-04, kind: section, section: 9, tags: [web, long]}
+  - {id: cc-s02-agentic-loop, item: cc-how-it-works, kind: section, section: 2, tags: [doc, long]}
+  - {id: cc-s04-tools, item: cc-how-it-works, kind: section, section: 4, tags: [doc, long, links]}
+  - {id: cc-s05-what-claude-can-access, item: cc-how-it-works, kind: section, section: 5, tags: [doc]}
+  - {id: start-bea-by-title, item: ae-04, kind: start, say: "我们学 Building Effective Agents 吧", tags: [routing]}
+  - {id: start-cc-by-topic, item: cc-how-it-works, kind: start, say: "我想学 Claude Code 是怎么工作的", tags: [routing]}
+  - {id: finish-bea-summary, item: ae-04, kind: finish, tags: [summary]}

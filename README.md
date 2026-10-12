@@ -42,6 +42,18 @@ uv run ruff check .          # lint
 uv run ruff format .         # 格式化
 ```
 
+## Evals（度量讲解质量）
+
+```bash
+uv run python -m evals.run --baseline oracle   # 不花钱：标准答案必须满分（验证 eval 本身）
+uv run python -m evals.run --baseline null     # 不花钱：空回答必须不及格
+uv run python -m evals.run --reps 2            # 真实评测：先估算花费、确认后才跑；--max-usd 设上限
+uv run python -m evals.calibrate export <run_dir>      # 导出评审结论，人工标注
+uv run python -m evals.calibrate score <run_dir>/labels.csv
+```
+
+报告在 `workspace/evals/runs/<时间>-teacher/report.html`：每个指标都带 95% 置信区间，每次试验都能点开完整轨迹。
+
 ## 目录
 
 | 路径 | 内容 |

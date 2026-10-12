@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -34,13 +35,23 @@ class FetchResult:
     url: str
 
 
-def http_fetch(url: str) -> FetchResult:
-    """下载一个 URL：跟随跳转、30 秒超时、带 User-Agent；HTTP 错误抛异常。"""
+def http_fetch(url: str, retries: int = 2) -> FetchResult:
+    """下载一个 URL：跟随跳转、30 秒超时、带 User-Agent；HTTP 错误抛异常。
+
+    连接类错误（代理断开、超时）是偶发的，退避后重试最多 retries 次；HTTP 4xx/5xx 不重试。
+    """
     headers = {"User-Agent": USER_AGENT}
-    with httpx2.Client(follow_redirects=True, timeout=30.0, headers=headers) as client:
-        r = client.get(url)
-        r.raise_for_status()
-        return FetchResult(r.text, r.headers.get("content-type", ""), str(r.url))
+    for attempt in range(retries + 1):
+        try:
+            with httpx2.Client(follow_redirects=True, timeout=30.0, headers=headers) as client:
+                r = client.get(url)
+                r.raise_for_status()
+                return FetchResult(r.text, r.headers.get("content-type", ""), str(r.url))
+        except httpx2.ConnectError, httpx2.TimeoutException:
+            if attempt == retries:
+                raise
+            time.sleep(1.5 * (attempt + 1))
+    raise AssertionError("unreachable")
 
 
 @dataclass(frozen=True)

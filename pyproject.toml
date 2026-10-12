@@ -40,5 +40,8 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]
+pythonpath = ["tests", "."]
 addopts = "-q"
+
+[tool.ruff.lint.isort]
+known-first-party = ["loopback", "evals"]
