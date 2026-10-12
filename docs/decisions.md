@@ -170,3 +170,23 @@
   - 路径必须在仓库内：加载课程时校验一次，读取时再校验一次。
 - **配套约定**：每个函数都有一句“做什么”的说明，关键代码块有步骤注释（CLAUDE.md）。这些注释既方便 code review，也是教师的讲解素材。
 - **理由**：学习者在开发这个 agent，它本身就是最贴近的学习材料，也是面试“项目深挖”环节最好的准备。
+
+## D20 两个前端：自研 harness（走 API）和 Claude Code（走订阅）
+
+- **决策**：
+  - 学习能力（课程、材料库、进度、项目自学、`next` 的计算）是与前端无关的核心。
+  - 前端有两个：
+    1. **自研 REPL**：`uv run loopback`。自己的 agent loop、事件日志、`/trace`、evals 都在这里，走 API。
+    2. **Claude Code**：Desktop 的 Code 标签页或 CLI，用 `/learn`。agent loop 由 Claude Code 提供，用量计入 Claude 订阅。
+  - Claude Code 前端的实现：
+    - **工具**：`loopback mcp` 是一个 stdio MCP server，把同一份 ToolSet 原样暴露出去，另加 `next_step`；项目根目录的 `.mcp.json` 负责登记它。
+    - **教学规则**：`.claude/skills/learn/SKILL.md` 通过 `` !`cat src/loopback/prompts/teacher.md` `` 注入，和 REPL 教师共用同一份 prompt。
+    - **助教**：用 Claude Code 自带的 side chat（`/btw`）。
+- **备选**：只保留自研 REPL，那样学习就一直要花 API 额度。
+- **理由**：学习者想用订阅学习、不花 API 额度。同时，自研 harness 仍然是开发和学习 agent 工程的主线，eval 也在这里跑。
+- **踩过的坑**：
+  - skill 注入命令的路径里不能有 `..`，否则 Claude Code 的权限检查会拒绝（可能借符号链接跳出工作目录），所以改用相对于项目根目录的路径。
+  - MCP 的 stdio 协议独占 stdout，server 里不能 print，日志只能写文件。
+  - 两个前端可能交替写 `progress.json`，所以每次工具调用前都先重新读一遍。
+- **限制**：Claude Code 模式下没有我们的事件日志和 `/trace`，对话记录由 Claude Code 保存在 `~/.claude/projects/` 下。
+- **面试怎么讲**：核心能力与 harness 解耦，再用 MCP 把同一套工具接到不同的 agent loop 上，这正是 MCP 标准化工具连接的意义（演进清单 #7、#45）。

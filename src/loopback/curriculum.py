@@ -122,6 +122,10 @@ class Curriculum:
 class Progress:
     def __init__(self, home: Path) -> None:
         self.path = home / "progress.json"
+        self.reload()
+
+    def reload(self) -> None:
+        """从磁盘重新读取进度：另一个前端（REPL 或 Claude Code）可能刚更新过它。"""
         data = read_json(self.path, version=PROGRESS_VERSION) or {}
         self.items: dict[str, dict[str, Any]] = data.get("items", {})
         self.current: str | None = data.get("current")

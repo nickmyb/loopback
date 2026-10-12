@@ -2,6 +2,7 @@
 
     uv run loopback                    开始学习（REPL）
     uv run loopback trace [文件] [--last N]   查看会话轨迹，默认最近一次会话；不调用模型
+    uv run loopback mcp                给 Claude Code 用的 MCP server（stdio），见 .mcp.json
     uv run loopback --version
 
 这里只做“启动装配”：读配置、准备目录和日志、加载课程，然后把对象交给 repl 或 trace。
@@ -37,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     trace_p = sub.add_parser("trace", help="查看会话轨迹（默认最近一次会话）")
     trace_p.add_argument("path", nargs="?", type=Path, help="会话事件日志 .jsonl")
     trace_p.add_argument("--last", type=int, help="只看最近 N 轮")
+    sub.add_parser("mcp", help="以 MCP server（stdio）方式提供学习工具，给 Claude Code 用")
     args = parser.parse_args(argv)
 
     load_dotenv(override=False)  # 已经 export 的环境变量优先于 .env
@@ -47,6 +49,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.command == "trace":
         return show_trace(settings, args.path, args.last)
+    if args.command == "mcp":
+        return run_mcp(settings)
     return learn(settings)
 
 
@@ -59,6 +63,20 @@ def show_trace(settings: Settings, path: Path | None, last: int | None) -> int:
     print(f"轨迹：{path}")
     print(render_text(build_trace(load_events(path)), last=last))
     return 0
+
+
+def run_mcp(settings: Settings) -> int:
+    """启动 MCP server。stdout 归 MCP 协议使用，这里只写日志文件，出错信息写 stderr。"""
+    from loopback import mcp_server  # 只有这个子命令需要 mcp 依赖，延迟导入
+
+    settings.home.mkdir(parents=True, exist_ok=True)
+    sanitize_proxy_env(os.environ)
+    setup_logging(settings)
+    try:
+        return mcp_server.serve(settings)
+    except CurriculumError as e:
+        print(f"课程表错误：{e}", file=sys.stderr)
+        return 2
 
 
 def learn(settings: Settings) -> int:

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "loopback": {
+      "command": "uv",
+      "args": ["run", "--quiet", "--directory", "${CLAUDE_PROJECT_DIR:-.}", "loopback", "mcp"],
+      "env": {
+        "LOOPBACK_HOME": "${CLAUDE_PROJECT_DIR:-.}/workspace"
+      }
+    }
+  }
+}

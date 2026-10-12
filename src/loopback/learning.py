@@ -31,6 +31,21 @@ def status_text(curriculum: Curriculum, progress: Progress, today: date | None =
     return "\n".join(lines)
 
 
+def next_message(curriculum: Curriculum, progress: Progress) -> str:
+    """根据进度算出下一步要做什么，生成一条明确的指令。"""
+    if progress.current is None:  # 没有正在学的：开始课程顺序里的下一篇
+        upcoming = progress.suggestions(curriculum, k=1)
+        if not upcoming:
+            return "课程已经全部学完了，请帮我回顾一下学过的内容。"
+        item = upcoming[0]
+        return f"开始学习 [{item.id}] {item.title}：先调用 fetch_material，给我整体概览。"
+    item, state = curriculum.get(progress.current), progress.state(progress.current)
+    total, nxt = state.get("n_sections"), state["section"] + 1
+    if total and nxt > total:  # 全部讲完：该做总结、标记完成了
+        return f"[{item.id}] 的 {total} 节都学完了：请做总结，并调用 update_progress 标记完成。"
+    return f"继续学习 [{item.id}] {item.title} 第 {nxt} 节：调用 read_section 讲解，讲完记录进度。"
+
+
 def learning_tools(curriculum: Curriculum, progress: Progress, library: Library) -> list[Tool]:
     """构造教师的 5 个学习工具，它们共用同一份课程、进度和材料库。"""
 
@@ -106,3 +121,15 @@ def learning_tools(curriculum: Curriculum, progress: Progress, library: Library)
             read_only=False,
         ),
     ]
+
+
+def next_step_tool(curriculum: Curriculum, progress: Progress) -> Tool:
+    """给没有 harness 侧 next 命令的前端（Claude Code）用：由代码算出下一步，返回明确的指令。"""
+    return Tool(
+        "next_step",
+        "Return the next study step computed from saved progress (which item and section to "
+        "teach next, or that the item is finished and needs a summary). Call this whenever "
+        "the learner says next or asks to continue.",
+        {"type": "object", "properties": {}},
+        lambda: next_message(curriculum, progress),
+    )

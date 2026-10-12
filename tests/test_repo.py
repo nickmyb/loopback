@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from loopback.curriculum import Curriculum, Item, Progress
+from loopback.learning import next_message
 from loopback.library import Library, render_section
-from loopback.repl import next_message
 from loopback.repo import code_sections, repo_file
 from loopback.tools import ToolError
 

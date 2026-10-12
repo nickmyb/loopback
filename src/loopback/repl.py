@@ -18,7 +18,7 @@ import anthropic
 from loopback.agents import AgentSpec
 from loopback.config import Settings
 from loopback.curriculum import Curriculum, Progress
-from loopback.learning import status_text
+from loopback.learning import next_message, status_text
 from loopback.llm import LLM
 from loopback.loop import run_turn
 from loopback.pricing import cache_hit_rate, estimate_usd
@@ -77,21 +77,6 @@ def run(app: App) -> None:
             ask_teacher(app, message)
         else:
             ask_teacher(app, line)
-
-
-def next_message(curriculum: Curriculum, progress: Progress) -> str:
-    """根据进度算出下一步要做什么，生成一条明确的指令。"""
-    if progress.current is None:  # 没有正在学的：开始课程顺序里的下一篇
-        upcoming = progress.suggestions(curriculum, k=1)
-        if not upcoming:
-            return "课程已经全部学完了，请帮我回顾一下学过的内容。"
-        item = upcoming[0]
-        return f"开始学习 [{item.id}] {item.title}：先调用 fetch_material，给我整体概览。"
-    item, state = curriculum.get(progress.current), progress.state(progress.current)
-    total, nxt = state.get("n_sections"), state["section"] + 1
-    if total and nxt > total:  # 全部讲完：该做总结、标记完成了
-        return f"[{item.id}] 的 {total} 节都学完了：请做总结，并调用 update_progress 标记完成。"
-    return f"继续学习 [{item.id}] {item.title} 第 {nxt} 节：调用 read_section 讲解，讲完记录进度。"
 
 
 def ask_teacher(app: App, text: str) -> None:
