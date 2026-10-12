@@ -11,8 +11,9 @@ import hashlib
 from dataclasses import dataclass, field
 from importlib import resources
 
-from loopback.config import Settings
-from loopback.files import workspace_tools
+from loopback.curriculum import Curriculum, Progress
+from loopback.learning import learning_tools
+from loopback.library import Library
 from loopback.tools import ToolSet
 
 
@@ -35,10 +36,10 @@ def load_prompt(name: str) -> str:
     return resources.files("loopback.prompts").joinpath(f"{name}.md").read_text(encoding="utf-8")
 
 
-def teacher(settings: Settings) -> AgentSpec:
-    """任课教师（主会话）。M1 只给工作区的文件工具；材料、课件等工具在 M2、M3 加入。"""
+def teacher(curriculum: Curriculum, progress: Progress, library: Library) -> AgentSpec:
+    """任课教师（主会话）。只拿学习类工具，不给通用文件读写（最小权限，D8）。"""
     return AgentSpec(
         name="teacher",
         system=load_prompt("teacher"),
-        tools=ToolSet(workspace_tools(settings.home, writable=True)),
+        tools=ToolSet(learning_tools(curriculum, progress, library)),
     )

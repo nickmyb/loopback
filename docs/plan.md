@@ -75,7 +75,11 @@ loopback/
 │   ├── loop.py        # agent_loop: streaming, stop_reason handling, usage accounting
 │   ├── agents.py      # AgentSpec + roster (teacher, ta, ask-subagent)
 │   ├── skills.py      # two-layer SkillLoader
-│   ├── materials.py   # fetch -> markdown -> sections(+links, images); untrusted-content wrapping
+│   ├── extract.py     # HTML/markdown -> clean markdown (dense container + markdownify)
+│   ├── materials.py   # markdown -> sections (+links L1.., images I1..), heading paths
+│   ├── library.py     # fetch + cache in $LOOPBACK_HOME/library/<id>/; outline; wrapped section text
+│   ├── curriculum.py  # curriculum (validated, searchable) + progress.json
+│   ├── learning.py    # teacher tools: find_material, curriculum_status, fetch_material, read_section, update_progress
 │   ├── store.py       # atomic JSON/JSONL writes, schema version field
 │   ├── render.py      # blocks -> HTML (escape + SVG sanitize/validate)
 │   ├── files.py       # workspace-confined file tools
@@ -83,7 +87,7 @@ loopback/
 │   └── cli.py         # REPL + routing + slash commands
 ├── src/loopback/prompts/*.md        src/loopback/skills/*/SKILL.md   (package data, versioned + hashed)
 ├── templates/lesson.html            # CSS tokens, light/dark, mermaid, steps player
-├── curriculum.yaml                  # shared content (in git)
+├── src/loopback/data/curriculum.yaml # shared content (in git), 72 items: L0 docs + evolution list
 ├── evals/{run.py,graders.py,judge.py,report.py,suites/...}
 ├── tests/                           # FakeLLM-based unit tests, golden sectioning, render snapshots
 └── docs/{plan.md,decisions.md,agent-evolution.md}

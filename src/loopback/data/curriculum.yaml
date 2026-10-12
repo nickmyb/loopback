@@ -1,0 +1,583 @@
+# loopback 课程表（公共内容，进 git）。字段说明见 src/loopback/curriculum.py。
+# L0：Claude Code / Codex 官方文档，按主题配对对比着学。
+# L2 / L3：docs/agent-evolution.md 中的 Anthropic 演进清单（由脚本生成，按清单顺序）。
+# 完整的分级课程（L1 经典论文、L4 / L5、Evals 主线）在 Phase 2 补齐。
+# must = ⭐ 必读；evals = 🧪 evals 主线。
+version: 1
+items:
+- id: cc-overview
+  title: Claude Code overview
+  url: https://code.claude.com/docs/en/overview.md
+  kind: doc
+  level: L0
+  group: 全景：它们是什么、怎么工作
+- id: cc-how-it-works
+  title: How Claude Code works
+  url: https://code.claude.com/docs/en/how-claude-code-works.md
+  kind: doc
+  level: L0
+  group: 全景：它们是什么、怎么工作
+- id: cx-cli
+  title: Codex CLI
+  url: https://learn.chatgpt.com/docs/codex/cli.md
+  kind: doc
+  level: L0
+  group: 全景：它们是什么、怎么工作
+- id: cc-context-window
+  title: Explore the context window
+  url: https://code.claude.com/docs/en/context-window.md
+  kind: doc
+  level: L0
+  group: 上下文与记忆
+- id: cc-memory
+  title: How Claude remembers your project
+  url: https://code.claude.com/docs/en/memory.md
+  kind: doc
+  level: L0
+  group: 上下文与记忆
+- id: cx-agents-md
+  title: Custom instructions with AGENTS.md
+  url: https://learn.chatgpt.com/docs/agent-configuration/agents-md.md
+  kind: doc
+  level: L0
+  group: 上下文与记忆
+- id: cx-memories
+  title: Codex Memories
+  url: https://learn.chatgpt.com/docs/customization/memories.md
+  kind: doc
+  level: L0
+  group: 上下文与记忆
+- id: cc-permissions
+  title: Configure permissions
+  url: https://code.claude.com/docs/en/permissions.md
+  kind: doc
+  level: L0
+  group: 权限与沙箱
+- id: cc-permission-modes
+  title: Choose a permission mode
+  url: https://code.claude.com/docs/en/permission-modes.md
+  kind: doc
+  level: L0
+  group: 权限与沙箱
+- id: cx-approvals
+  title: Agent approvals & security
+  url: https://learn.chatgpt.com/docs/agent-approvals-security.md
+  kind: doc
+  level: L0
+  group: 权限与沙箱
+- id: cc-features
+  title: Extend Claude Code
+  url: https://code.claude.com/docs/en/features-overview.md
+  kind: doc
+  level: L0
+  group: 扩展机制全景
+- id: cx-customization
+  title: Codex Customization
+  url: https://learn.chatgpt.com/docs/customization/overview.md
+  kind: doc
+  level: L0
+  group: 扩展机制全景
+- id: cc-skills
+  title: Extend Claude with skills
+  url: https://code.claude.com/docs/en/skills.md
+  kind: doc
+  level: L0
+  group: Skills
+- id: cx-skills
+  title: 'Codex: Build skills'
+  url: https://learn.chatgpt.com/docs/build-skills.md
+  kind: doc
+  level: L0
+  group: Skills
+- id: cc-subagents
+  title: Create custom subagents
+  url: https://code.claude.com/docs/en/sub-agents.md
+  kind: doc
+  level: L0
+  group: Subagents
+- id: cx-subagents
+  title: 'Codex: Subagents'
+  url: https://learn.chatgpt.com/docs/agent-configuration/subagents.md
+  kind: doc
+  level: L0
+  group: Subagents
+- id: cc-hooks
+  title: Automate actions with hooks
+  url: https://code.claude.com/docs/en/hooks-guide.md
+  kind: doc
+  level: L0
+  group: Hooks
+- id: cx-hooks
+  title: 'Codex: Hooks'
+  url: https://learn.chatgpt.com/docs/hooks.md
+  kind: doc
+  level: L0
+  group: Hooks
+- id: cc-mcp
+  title: Connect Claude Code to tools via MCP
+  url: https://code.claude.com/docs/en/mcp.md
+  kind: doc
+  level: L0
+  group: MCP
+- id: cx-mcp
+  title: 'Codex: Model Context Protocol'
+  url: https://learn.chatgpt.com/docs/extend/mcp.md
+  kind: doc
+  level: L0
+  group: MCP
+- id: cc-best-practices
+  title: Best practices for Claude Code
+  url: https://code.claude.com/docs/en/best-practices.md
+  kind: doc
+  level: L0
+  group: 最佳实践与缓存
+- id: cc-prompt-caching
+  title: How Claude Code uses prompt caching
+  url: https://code.claude.com/docs/en/prompt-caching.md
+  kind: doc
+  level: L0
+  group: 最佳实践与缓存
+- id: cc-agent-sdk
+  title: Agent SDK overview
+  url: https://code.claude.com/docs/en/agent-sdk/overview.md
+  kind: doc
+  level: L0
+  group: SDK：把 agent 当库用
+- id: cx-sdk
+  title: Codex SDK
+  url: https://learn.chatgpt.com/docs/codex-sdk.md
+  kind: doc
+  level: L0
+  group: SDK：把 agent 当库用
+- id: ae-01
+  title: Introducing Claude 3
+  url: https://www.anthropic.com/news/claude-3-family
+  kind: news
+  level: L2
+  group: 阶段一·多模态与上下文检索
+  date: 2024-03
+  must: true
+  evals: false
+- id: ae-02
+  title: Introducing Claude 3.5 Sonnet
+  url: https://www.anthropic.com/news/claude-3-5-sonnet
+  kind: news
+  level: L2
+  group: 阶段一·多模态与上下文检索
+  date: 2024-06
+  must: false
+  evals: false
+- id: ae-03
+  title: Introducing Contextual Retrieval
+  url: https://www.anthropic.com/engineering/contextual-retrieval
+  kind: blog
+  level: L2
+  group: 阶段一·多模态与上下文检索
+  date: 2024-09
+  must: false
+  evals: false
+- id: ae-04
+  title: Building Effective Agents
+  url: https://www.anthropic.com/engineering/building-effective-agents
+  kind: blog
+  level: L2
+  group: 阶段二·Agent 设计理念奠基
+  date: 2024-12
+  must: true
+  evals: false
+- id: ae-05
+  title: Introducing computer use
+  url: https://www.anthropic.com/news/3-5-models-and-computer-use
+  kind: news
+  level: L2
+  group: 阶段三·工具标准化与 Computer Use
+  date: 2024-10
+  must: true
+  evals: false
+- id: ae-06
+  title: Developing a computer use model
+  url: https://www.anthropic.com/research/developing-computer-use
+  kind: research
+  level: L2
+  group: 阶段三·工具标准化与 Computer Use
+  date: 2024-10
+  must: false
+  evals: false
+- id: ae-07
+  title: Introducing the Model Context Protocol (MCP)
+  url: https://www.anthropic.com/news/model-context-protocol
+  kind: news
+  level: L2
+  group: 阶段三·工具标准化与 Computer Use
+  date: 2024-11
+  must: true
+  evals: false
+- id: ae-08
+  title: Raising the Bar on SWE-bench Verified
+  url: https://www.anthropic.com/engineering/swe-bench-sonnet
+  kind: blog
+  level: L2
+  group: 阶段四·工具设计与推理优化
+  date: 2025-01
+  must: false
+  evals: false
+- id: ae-09
+  title: The "Think" Tool
+  url: https://www.anthropic.com/engineering/claude-think-tool
+  kind: blog
+  level: L2
+  group: 阶段四·工具设计与推理优化
+  date: 2025-03
+  must: false
+  evals: false
+- id: ae-10
+  title: 'Claude Code: Best Practices for Agentic Coding'
+  url: https://www.anthropic.com/engineering/claude-code-best-practices
+  kind: blog
+  level: L2
+  group: 阶段四·工具设计与推理优化
+  date: 2025-04
+  must: false
+  evals: false
+- id: ae-11
+  title: How We Built Our Multi-Agent Research System
+  url: https://www.anthropic.com/engineering/multi-agent-research-system
+  kind: blog
+  level: L2
+  group: 阶段五·多 Agent 与 MCP 生态
+  date: 2025-06
+  must: false
+  evals: false
+- id: ae-12
+  title: 'Desktop Extensions: One-click MCP Server Installation'
+  url: https://www.anthropic.com/engineering/desktop-extensions
+  kind: blog
+  level: L2
+  group: 阶段五·多 Agent 与 MCP 生态
+  date: 2025-06
+  must: false
+  evals: false
+- id: ae-13
+  title: Writing Effective Tools for Agents
+  url: https://www.anthropic.com/engineering/writing-tools-for-agents
+  kind: blog
+  level: L2
+  group: 阶段六·上下文工程与工具设计深化
+  date: 2025-09
+  must: false
+  evals: false
+- id: ae-14
+  title: Effective Context Engineering for AI Agents
+  url: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+  kind: blog
+  level: L2
+  group: 阶段六·上下文工程与工具设计深化
+  date: 2025-09
+  must: true
+  evals: false
+- id: ae-26
+  title: Managing context on the Claude Developer Platform
+  url: https://claude.com/resources/articles/context-management
+  kind: blog
+  level: L2
+  group: 阶段六·上下文工程与工具设计深化
+  date: '2025-09-29'
+  must: false
+  evals: false
+- id: ae-24
+  title: Building Agents with the Claude Agent SDK
+  url: https://claude.com/resources/articles/building-agents-with-the-claude-agent-sdk
+  kind: blog
+  level: L2
+  group: 阶段六·上下文工程与工具设计深化
+  date: '2025-09-29'
+  must: false
+  evals: false
+- id: ae-15
+  title: Introducing Agent Skills
+  url: https://www.anthropic.com/news/skills
+  kind: news
+  level: L3
+  group: 阶段七·Skills 与沙箱
+  date: '2025-10-16'
+  must: true
+  evals: false
+- id: ae-23
+  title: Equipping Agents for the Real World with Agent Skills
+  url: https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
+  kind: blog
+  level: L3
+  group: 阶段七·Skills 与沙箱
+  date: '2025-10-16'
+  must: false
+  evals: false
+- id: ae-16
+  title: Claude Code Sandboxing
+  url: https://www.anthropic.com/engineering/claude-code-sandboxing
+  kind: blog
+  level: L3
+  group: 阶段七·Skills 与沙箱
+  date: 2025-10
+  must: false
+  evals: false
+- id: ae-17
+  title: Code Execution with MCP
+  url: https://www.anthropic.com/engineering/code-execution-with-mcp
+  kind: blog
+  level: L3
+  group: 阶段八·高级工具使用与长时间运行
+  date: 2025-11
+  must: false
+  evals: false
+- id: ae-18
+  title: Advanced Tool Use
+  url: https://www.anthropic.com/engineering/advanced-tool-use
+  kind: blog
+  level: L3
+  group: 阶段八·高级工具使用与长时间运行
+  date: 2025-11
+  must: false
+  evals: false
+- id: ae-19
+  title: Effective Harnesses for Long-Running Agents
+  url: https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents
+  kind: blog
+  level: L3
+  group: 阶段八·高级工具使用与长时间运行
+  date: 2025-11
+  must: true
+  evals: false
+- id: ae-20
+  title: Agent Skills 开放标准
+  url: https://agentskills.io
+  kind: spec
+  level: L3
+  group: 阶段九·Skills 开放标准
+  date: 2025-12
+  must: true
+  evals: false
+- id: ae-21
+  title: Demystifying Evals for AI Agents
+  url: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+  kind: blog
+  level: L3
+  group: 阶段十·评估走向对抗
+  date: '2026-01-09'
+  must: true
+  evals: true
+- id: ae-27
+  title: Designing AI-resistant technical evaluations
+  url: https://www.anthropic.com/engineering/AI-resistant-technical-evaluations
+  kind: blog
+  level: L3
+  group: 阶段十·评估走向对抗
+  date: '2026-01-21'
+  must: false
+  evals: true
+- id: ae-22
+  title: 2026 Agentic Coding Trends Report
+  url: https://resources.anthropic.com/2026-agentic-coding-trends-report
+  kind: report
+  level: L3
+  group: 阶段十·评估走向对抗
+  date: 2026-01
+  must: false
+  evals: false
+- id: ae-25
+  title: Quantifying Infrastructure Noise in Agentic Coding Evals
+  url: https://www.anthropic.com/engineering/infrastructure-noise
+  kind: blog
+  level: L3
+  group: 阶段十·评估走向对抗
+  date: '2026-02-05'
+  must: false
+  evals: true
+- id: ae-28
+  title: Eval awareness in Claude Opus 4.6's BrowseComp performance
+  url: https://www.anthropic.com/engineering/eval-awareness-browsecomp
+  kind: blog
+  level: L3
+  group: 阶段十·评估走向对抗
+  date: '2026-03-06'
+  must: true
+  evals: true
+- id: ae-29
+  title: When to use multi-agent systems (and when not to)
+  url: https://claude.com/resources/articles/building-multi-agent-systems-when-and-how-to-use-them
+  kind: blog
+  level: L3
+  group: 阶段十一·多 Agent 实战与长时运行的 Harness
+  date: '2026-01-23'
+  must: false
+  evals: false
+- id: ae-30
+  title: Building a C compiler with a team of parallel Claudes
+  url: https://www.anthropic.com/engineering/building-c-compiler
+  kind: blog
+  level: L3
+  group: 阶段十一·多 Agent 实战与长时运行的 Harness
+  date: '2026-02-05'
+  must: true
+  evals: false
+- id: ae-31
+  title: Measuring AI agent autonomy in practice
+  url: https://www.anthropic.com/research/measuring-agent-autonomy
+  kind: research
+  level: L3
+  group: 阶段十一·多 Agent 实战与长时运行的 Harness
+  date: '2026-02-18'
+  must: true
+  evals: false
+- id: ae-32
+  title: Common workflow patterns for AI agents
+  url: https://claude.com/resources/articles/common-workflow-patterns-for-ai-agents-and-when-to-use-them
+  kind: blog
+  level: L3
+  group: 阶段十一·多 Agent 实战与长时运行的 Harness
+  date: '2026-03-05'
+  must: false
+  evals: false
+- id: ae-33
+  title: Harness design for long-running application development
+  url: https://www.anthropic.com/engineering/harness-design-long-running-apps
+  kind: blog
+  level: L3
+  group: 阶段十一·多 Agent 实战与长时运行的 Harness
+  date: '2026-03-24'
+  must: true
+  evals: false
+- id: ae-34
+  title: How we built Claude Code auto mode
+  url: https://www.anthropic.com/engineering/claude-code-auto-mode
+  kind: blog
+  level: L3
+  group: 阶段十一·多 Agent 实战与长时运行的 Harness
+  date: '2026-03-25'
+  must: true
+  evals: false
+- id: ae-35
+  title: 'Agent harness design: 3 patterns for harnessing Claude''s intelligence'
+  url: https://claude.com/resources/articles/harnessing-claudes-intelligence
+  kind: blog
+  level: L3
+  group: 阶段十二·把 Harness 交给平台托管
+  date: '2026-04-02'
+  must: false
+  evals: false
+- id: ae-36
+  title: 'Scaling Managed Agents: Decoupling the brain from the hands'
+  url: https://www.anthropic.com/engineering/managed-agents
+  kind: blog
+  level: L3
+  group: 阶段十二·把 Harness 交给平台托管
+  date: '2026-04-08'
+  must: true
+  evals: false
+- id: ae-37
+  title: Trustworthy agents in practice
+  url: https://www.anthropic.com/research/trustworthy-agents
+  kind: research
+  level: L3
+  group: 阶段十二·把 Harness 交给平台托管
+  date: '2026-04-09'
+  must: true
+  evals: false
+- id: ae-38
+  title: 'Multi-agent coordination patterns: Five approaches and when to use them'
+  url: https://claude.com/resources/articles/multi-agent-coordination-patterns
+  kind: blog
+  level: L3
+  group: 阶段十二·把 Harness 交给平台托管
+  date: '2026-04-10'
+  must: true
+  evals: false
+- id: ae-39
+  title: An update on recent Claude Code quality reports
+  url: https://www.anthropic.com/engineering/april-23-postmortem
+  kind: blog
+  level: L3
+  group: 阶段十二·把 Harness 交给平台托管
+  date: '2026-04-23'
+  must: false
+  evals: false
+- id: ae-40
+  title: 'Memory for Claude Managed Agents: agents that learn across sessions'
+  url: https://claude.com/resources/articles/claude-managed-agents-memory
+  kind: blog
+  level: L3
+  group: 阶段十二·把 Harness 交给平台托管
+  date: '2026-04-23'
+  must: false
+  evals: false
+- id: ae-41
+  title: 'New in Claude Managed Agents: dreaming, outcomes, and multiagent orchestration'
+  url: https://claude.com/resources/articles/new-in-claude-managed-agents
+  kind: blog
+  level: L3
+  group: 阶段十三·自我改进、纵深安全与协议升级
+  date: '2026-05-19'
+  must: true
+  evals: true
+- id: ae-42
+  title: How we contain Claude across products
+  url: https://www.anthropic.com/engineering/how-we-contain-claude
+  kind: blog
+  level: L3
+  group: 阶段十三·自我改进、纵深安全与协议升级
+  date: '2026-05-25'
+  must: true
+  evals: false
+- id: ae-43
+  title: 'The evolution of agentic surfaces: building with Claude Managed Agents'
+  url: https://claude.com/resources/articles/building-with-claude-managed-agents
+  kind: blog
+  level: L3
+  group: 阶段十三·自我改进、纵深安全与协议升级
+  date: '2026-06-10'
+  must: true
+  evals: false
+- id: ae-44
+  title: 'Steering Claude Code: when to use CLAUDE.md, skills, hooks, and subagents'
+  url: https://claude.com/resources/articles/steering-claude-code-skills-hooks-rules-subagents-and-more
+  kind: blog
+  level: L3
+  group: 阶段十三·自我改进、纵深安全与协议升级
+  date: '2026-06-18'
+  must: false
+  evals: false
+- id: ae-45
+  title: 'MCP 2026-07-28 spec: stateless core'
+  url: https://claude.com/resources/articles/bringing-mcp-2026-07-28-to-claude
+  kind: blog
+  level: L3
+  group: 阶段十三·自我改进、纵深安全与协议升级
+  date: '2026-07-28'
+  must: true
+  evals: false
+- id: ae-46
+  title: Patterns and problems in multiagent systems
+  url: https://www.anthropic.com/research/multiagent-systems
+  kind: research
+  level: L3
+  group: 阶段十四·多 Agent 的风险与长上下文经济学
+  date: '2026-08-13'
+  must: true
+  evals: false
+- id: ae-47
+  title: 'Coding sessions are longer and use more context: Claude Opus 5.5'
+  url: https://claude.com/resources/articles/claude-opus-5-5-built-for-coding-sessions-that-use-more-context
+  kind: blog
+  level: L3
+  group: 阶段十四·多 Agent 的风险与长上下文经济学
+  date: '2026-09-24'
+  must: false
+  evals: false
+- id: ae-48
+  title: Investigating unintended model actions in our evaluations and internal use
+  url: https://www.anthropic.com/research/investigating-unintended-model-actions
+  kind: research
+  level: L3
+  group: 阶段十四·多 Agent 的风险与长上下文经济学
+  date: '2026-10-09'
+  must: false
+  evals: true

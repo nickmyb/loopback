@@ -19,7 +19,9 @@ from dotenv import load_dotenv
 
 from loopback import __version__, agents
 from loopback.config import ConfigError, Settings, setup_logging
-from loopback.llm import AnthropicLLM
+from loopback.curriculum import Curriculum, CurriculumError, Progress
+from loopback.library import Library
+from loopback.llm import AnthropicLLM, sanitize_proxy_env
 from loopback.loop import run_turn
 from loopback.pricing import cache_hit_rate, estimate_usd
 from loopback.session import Session
@@ -45,20 +47,28 @@ def main(argv: list[str] | None = None) -> int:
         print(f"配置错误：{e}", file=sys.stderr)
         return 2
     settings.home.mkdir(parents=True, exist_ok=True)
+    dropped = sanitize_proxy_env(os.environ)  # 抓取材料和调用模型都要用 HTTP
     log_file = setup_logging(settings)
     log.info(
         "startup version=%s model=%s provider=%s", __version__, settings.model, settings.provider
     )
+    if dropped:
+        log.warning("ignored unsupported proxy env vars: %s", ", ".join(dropped))
+    try:
+        curriculum = Curriculum.load()
+    except CurriculumError as e:
+        print(f"课程表错误：{e}", file=sys.stderr)
+        return 2
 
     print(f"loopback {__version__} · 模型 {settings.model} · 接口 {settings.provider}")
-    print(f"个人状态 {settings.home} · 日志 {log_file}")
+    print(f"个人状态 {settings.home} · 日志 {log_file} · 课程 {len(curriculum.items)} 篇")
     if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN")):
         print("提示：没有检测到 ANTHROPIC_API_KEY，请先 cp .env.example .env 并填写")
 
     session = Session.open(
         settings.home / "sessions" / f"{datetime.now():%Y%m%d-%H%M%S}-teacher.jsonl"
     )
-    spec = agents.teacher(settings)
+    spec = agents.teacher(curriculum, Progress(settings.home), Library(settings.home, curriculum))
     session.append(
         "meta",
         agent=spec.name,
@@ -139,8 +149,13 @@ def format_cost(session: Session) -> str:
 
 
 def _show_tool(name: str, args: dict[str, Any]) -> None:
-    brief = ", ".join(f"{k}={str(v)[:40]!r}" for k, v in args.items())
+    brief = ", ".join(f"{k}={_short(v)}" for k, v in args.items())
     print(f"\n  ⚙ {name}({brief})", flush=True)
+
+
+def _short(value: Any, limit: int = 40) -> str:
+    text = repr(value)
+    return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
 def _describe_api_error(e: anthropic.APIError) -> str:
