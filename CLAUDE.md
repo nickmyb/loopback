@@ -17,6 +17,7 @@ uv run pytest                # 单元测试，必须全绿，不调用付费 API
 uv run ruff check . && uv run ruff format --check .
 ```
 
+- **不允许以任何方式读取 `.env`**（包括 grep 非密钥的行）。需要确认配置时，看 `uv run loopback` 启动时打印的模型和接口；需要修改时，告诉用户去改哪几行。`.env.example` 可以正常读写。
 - 本仓库的 `.python-version` 是 3.14，由 uv 管理。不要直接用 `python`，因为 pyenv 的 shim 没有 3.14。一律用 `uv run ...`。
 - 跑 eval 会花钱：运行前先打印预计花费，等用户确认后再跑。
 

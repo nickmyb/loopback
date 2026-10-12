@@ -78,8 +78,10 @@ loopback/
 │   ├── materials.py   # fetch -> markdown -> sections(+links, images); untrusted-content wrapping
 │   ├── store.py       # atomic JSON/JSONL writes, schema version field
 │   ├── render.py      # blocks -> HTML (escape + SVG sanitize/validate)
+│   ├── files.py       # workspace-confined file tools
+│   ├── pricing.py     # usage -> USD estimate, cache hit rate
 │   └── cli.py         # REPL + routing + slash commands
-├── prompts/{teacher,ta,ask}.md      skills/{overview,deep-dive,visualize,summary}/SKILL.md
+├── src/loopback/prompts/*.md        src/loopback/skills/*/SKILL.md   (package data, versioned + hashed)
 ├── templates/lesson.html            # CSS tokens, light/dark, mermaid, steps player
 ├── curriculum.yaml                  # shared content (in git)
 ├── evals/{run.py,graders.py,judge.py,report.py,suites/...}

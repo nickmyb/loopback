@@ -103,3 +103,30 @@
 - **决策**：Python 3.14.8，uv 管理依赖和解释器，src layout，ruff 加 pytest，GitHub Actions 跑 CI；直接用官方 `anthropic` SDK。
 - **备选**：Python 3.15（2026-10-09 刚发布，依赖库的 wheel 可能还没跟上）；LangChain、LangGraph 等框架。
 - **理由**：3.14 是最新的稳定大版本；不用框架，agent 的核心机制才看得见、改得动。
+
+## D13 core 阶段先不接 server-side fallback 和 eager_input_streaming
+
+- **决策**：
+  - `refusal` 在 core 阶段只做显式处理：告诉用户拒绝的类别；如果回复里带了 tool_use，回一个“未执行”的结果，但不执行。
+  - server-side fallback（`fallbacks: "default"`）和 `eager_input_streaming` 放到后补项。
+- **备选**：按 claude-api skill 的默认做法，现在就打开。
+- **理由**：
+  - fallback 要走 beta 接口。中途换模型后，再回传历史有专门的剔除规则：最后一个 `fallback` 块之前的 thinking 和 tool_use 都不能回传，而且那之前的 tool_use 也不能执行。这块需要单独设计和测试。
+  - eager streaming 打开后，工具输入改由客户端自己校验，截断和非法 JSON 也要自己处理。
+  - 学习类内容很少触发拒答，日常测试也主要用 DeepSeek（这两个特性它都用不上）。
+- **补的时候怎么做**：
+  - 只在 `profile.official` 时开启。
+  - 投影层实现上面那条剔除规则；loop 只执行最后一个 `fallback` 块之后的 tool_use。
+  - 补一组 FakeLLM 测试覆盖“中途 fallback”的情况。
+
+## D14 启动时清理 HTTP 客户端不认识的代理变量
+
+- **决策**：创建 Anthropic client 之前，如果 `ALL_PROXY` 的协议不是 http/https（或者装了 socksio 时的 socks5/socks5h），就把它从环境里去掉，并记一条日志。
+- **理由**：桌面代理工具常导出 `ALL_PROXY=socks://…`。SDK 1.x 底层的 httpx2 不认这种写法，会在创建 client 时直接崩溃，而且这个 SDK 不管 `trust_env` 设成什么都会读代理变量。HTTPS 请求本来就走 `HTTPS_PROXY`，去掉 `ALL_PROXY` 不影响访问。
+- **面试怎么讲**：工程级的意思是能在用户的真实环境里跑起来，而不只是在开发者自己的机器上。
+
+## D15 请求失败时用追加 turn_failed 的方式撤回这次输入
+
+- **决策**：请求失败（API 错误或 Ctrl-C）时，追加一个 `turn_failed` 事件。如果那条用户输入在失败前还没得到任何回答，投影时就跳过它。
+- **备选**：把失败的输入留在历史里，下一轮会被重复发送，模型会把两个问题一起回答；或者直接删掉那一行，但这违反只追加。
+- **理由**：撤回本身也是一个事件，日志里依然能看到失败记录。被跳过的消息之后没有产生过任何 thinking block，所以不影响 preserved thinking。
