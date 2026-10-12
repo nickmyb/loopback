@@ -6,7 +6,8 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Pin the LTS matching the dev machine; ubuntu-latest moves to 26.04 from 2026-10-19.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       # setup-uv publishes full-version tags only (no floating major tag)
