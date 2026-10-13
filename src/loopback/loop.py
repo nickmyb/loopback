@@ -54,10 +54,12 @@ def run_turn(
     反复“请求模型 -> 记录回复 -> 执行工具 -> 记录结果”，直到模型不再要工具。
     """
     session.append("user", content=user_input)
+    model = spec.model_in(settings)  # 按角色取模型（D31）；一个会话从头到尾只用这一个
     for step in range(1, spec.max_steps + 1):
         # 1) 用事件日志的投影拼请求：messages 永远是上一轮请求的原样延续（只追加）
         request = build_request(
             settings,
+            model=model,
             system=spec.system,
             messages=session.messages(),
             tools=spec.tools.specs(),
@@ -83,8 +85,8 @@ def run_turn(
             latency_ms=resp.latency_ms,
             prompt_hash=spec.prompt_hash,
         )
-        if resp.model != settings.model:
-            log.warning("served model %s != requested %s", resp.model, settings.model)
+        if resp.model != model:
+            log.warning("served model %s != requested %s", resp.model, model)
 
         # 4) 回复里有工具调用：执行并记录结果（每个 tool_use 都必须有 tool_result）
         tool_uses = [b for b in resp.content if b.get("type") == "tool_use"]

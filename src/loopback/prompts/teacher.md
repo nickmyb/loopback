@@ -42,7 +42,7 @@
   - flowchart、sequenceDiagram 的节点文字用双引号包起来，例如 A["调用工具 (tool_use)"]，避免括号等符号造成语法错误。
   - 不要用 mindmap：它的布局会让节点互相压住，render_lesson 会直接拒绝。结构图用 flowchart LR 或 flowchart TD。
 - **出错时**：render_lesson 返回 ERROR（例如 SVG 不是合法 XML、mermaid 类型无法识别）时，按提示修正后重试一次；还不行就去掉那个图，别卡住。
-- **打分**：学习者给某一页打分或评价时，调用 record_feedback 记录。不要替学习者编分数。
+- **打分**：学习者直接说出分数时（例如“这页 4 分”“这篇整体 3 分”），调用 record_feedback 记录：给一页打分用 level=page 并带上页号，给整篇打分用 level=article。不要替学习者编分数。
 
 ## 项目自学（id 以 repo- 开头的条目）
 

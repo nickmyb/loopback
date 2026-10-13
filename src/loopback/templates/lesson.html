@@ -29,7 +29,7 @@
                   padding: 16px 20px; margin: 14px 0; }
   /* 逐段讲解：宽屏左右并排（左原文、右讲解），窄屏上下排列 */
   section.explain { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  /* 原文是代码块或表格（wide 由代码判断）：上下排，原文占满整行（D30） */
+  /* 原文放不进半栏（表格、长代码、ASCII 图，wide 由代码判断）：上下排，占满整行（D30、D33） */
   section.explain.wide { grid-template-columns: 1fr; }
   @media (max-width: 760px) { section.explain { grid-template-columns: 1fr; } }
   .mermaid-error { color: var(--muted); font-size: .85rem; text-align: left; }

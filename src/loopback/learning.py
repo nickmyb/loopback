@@ -10,9 +10,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 from loopback.curriculum import Curriculum
-from loopback.feedback import feedback_tool
+from loopback.feedback import Origin, feedback_tool
 from loopback.library import Library, same_page
-from loopback.progress import Progress, next_message, status_text
+from loopback.progress import Progress, status_text
 from loopback.reading import outline, render_section
 from loopback.render import LessonRenderer, lesson_tool
 from loopback.tools import Tool, ToolError
@@ -116,29 +116,22 @@ def learning_tools(curriculum: Curriculum, progress: Progress, library: Library)
     ]
 
 
-def next_step_tool(curriculum: Curriculum, progress: Progress) -> Tool:
-    """给没有 harness 侧 next 命令的前端（Claude Code）用：由代码算出下一步，返回明确的指令。"""
-    return Tool(
-        "next_step",
-        "Return the next study step computed from saved progress (which item and section to "
-        "teach next, or that the item is finished and needs a summary). Call this whenever "
-        "the learner says next or asks to continue.",
-        {"type": "object", "properties": {}},
-        lambda: next_message(curriculum, progress),
-    )
-
-
 def teacher_tools(
     home: Path,
     curriculum: Curriculum,
     progress: Progress,
     library: Library,
     open_page: Callable[[Path], None] = lambda _p: None,
+    *,
+    origin: Origin,
 ) -> list[Tool]:
-    """教师的全部工具：学习类 5 个 + 课件 render_lesson + 反馈 record_feedback。两个前端共用。"""
+    """教师的全部工具：学习类 5 个 + 课件 render_lesson + 反馈 record_feedback。两个前端共用。
+
+    origin 写进每条反馈，说明分数是在哪个前端、对着哪个 prompt 版本和模型打的（D32）。
+    """
     renderer = LessonRenderer(home, library, open_page)
     return [
         *learning_tools(curriculum, progress, library),
         lesson_tool(renderer),
-        feedback_tool(home),
+        feedback_tool(home, library, origin),
     ]

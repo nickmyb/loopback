@@ -14,7 +14,9 @@ from evals.graders import grade
 from evals.harness import run_trial, snapshot_materials
 from evals.judge import JudgeError, judge, parse
 from evals.report import summarize_rows, write_report
+from evals.run import with_model
 from evals.stats import noise_floor, summarize, wilson
+from loopback.config import Settings
 from loopback.curriculum import Curriculum
 from loopback.library import Library
 from loopback.llm import Response
@@ -160,3 +162,9 @@ def test_section_numbers_in_the_teachers_own_words_fail(tmp_path, cache) -> None
     assert grade(t)["no_section_numbers"]
     bad = replace(t, final_text="对照第 14 节的里程碑表就能看出来。")  # 应该写原文标题（D29）
     assert not grade(bad)["no_section_numbers"] and not grade(bad)["pass"]
+
+
+def test_model_flag_overrides_the_teacher_role_model_from_env() -> None:
+    env = with_model({"MODEL_ID": "a", "LOOPBACK_TEACHER_MODEL": "b"}, "c")
+    assert Settings.from_env(env).model_for("teacher") == "c"  # 被测的就是命令行指定的模型
+    assert with_model({"MODEL_ID": "a"}, None) == {"MODEL_ID": "a"}

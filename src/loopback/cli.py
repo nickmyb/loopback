@@ -20,12 +20,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from loopback import __version__, agents, repl
+from loopback.agents import load_prompt, prompt_hash
 from loopback.config import ConfigError, Settings, setup_logging
 from loopback.curriculum import Curriculum, CurriculumError
+from loopback.feedback import Origin
 from loopback.learning import teacher_tools
 from loopback.library import Library
 from loopback.llm import AnthropicLLM, sanitize_proxy_env
 from loopback.progress import Progress
+from loopback.rating import Rater
 from loopback.render import open_in_browser
 from loopback.session import Session
 from loopback.trace import build_trace, latest_session, load_events, render_text
@@ -88,7 +91,10 @@ def learn(settings: Settings) -> int:
     dropped = sanitize_proxy_env(os.environ)  # 抓取材料和调用模型都要用 HTTP
     log_file = setup_logging(settings)
     log.info(
-        "startup version=%s model=%s provider=%s", __version__, settings.model, settings.provider
+        "startup version=%s model=%s provider=%s",
+        __version__,
+        settings.model_for("teacher"),
+        settings.provider,
     )
     if dropped:
         log.warning("ignored unsupported proxy env vars: %s", ", ".join(dropped))
@@ -98,7 +104,9 @@ def learn(settings: Settings) -> int:
         print(f"课程表错误：{e}", file=sys.stderr)
         return 2
 
-    print(f"loopback {__version__} · 模型 {settings.model} · 接口 {settings.provider}")
+    print(
+        f"loopback {__version__} · 模型 {settings.model_for('teacher')} · 接口 {settings.provider}"
+    )
     print(f"个人状态 {settings.home} · 日志 {log_file} · 课程 {len(curriculum.items)} 篇")
     if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN")):
         print("提示：没有检测到 ANTHROPIC_API_KEY，请先 cp .env.example .env 并填写")
@@ -110,16 +118,19 @@ def learn(settings: Settings) -> int:
     progress = Progress(settings.home)
     opener = open_in_browser if settings.open_browser else (lambda _p: None)
     library = Library(settings.home, curriculum)
-    spec = agents.teacher(teacher_tools(settings.home, curriculum, progress, library, opener))
+    origin = Origin("repl", prompt_hash(load_prompt("teacher")), settings.model_for("teacher"))
+    tools = teacher_tools(settings.home, curriculum, progress, library, opener, origin=origin)
+    spec = agents.teacher(tools)
     session.append(
         "meta",
         agent=spec.name,
-        model=settings.model,
+        model=spec.model_in(settings),
         prompt_hash=spec.prompt_hash,
         tools=spec.tools.names,
         version=__version__,
     )
-    repl.run(repl.App(settings, session, spec, AnthropicLLM(settings), curriculum, progress))
+    rater = Rater(settings.home, progress, library, origin, source="repl")
+    repl.run(repl.App(settings, session, spec, AnthropicLLM(settings), curriculum, progress, rater))
     return 0
 
 

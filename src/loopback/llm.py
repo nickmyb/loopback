@@ -50,6 +50,7 @@ class LLM(Protocol):
 def build_request(
     settings: Settings,
     *,
+    model: str,
     system: str,
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]],
@@ -58,7 +59,7 @@ def build_request(
 ) -> dict[str, Any]:
     """拼出 Messages API 请求：通用字段总是带上，缓存和 effort 只在官方接口时加。"""
     req: dict[str, Any] = {
-        "model": settings.model,
+        "model": model,
         "max_tokens": max_tokens,
         "system": system,
         "messages": messages,

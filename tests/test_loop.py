@@ -177,6 +177,17 @@ def test_served_model_and_prompt_hash_are_recorded(tmp_path: Path) -> None:
     assert ev["model"] == "deepseek-v4-pro" and ev["prompt_hash"] == spec.prompt_hash
 
 
+def test_each_role_asks_for_its_own_model(tmp_path: Path) -> None:
+    env = {"LOOPBACK_HOME": str(tmp_path), "MODEL_ID": "base", "LOOPBACK_T_MODEL": "for-t"}
+    settings = Settings.from_env(env)
+    spec = AgentSpec(name="t", system="sys", tools=ToolSet([]))
+    llm = FakeLLM([reply(text("hi")), reply(text("hi"))])
+    run_turn(Session.open(tmp_path / "a.jsonl"), spec, llm, settings, "go")
+    pinned = AgentSpec(name="t", system="sys", tools=ToolSet([]), model="pinned")
+    run_turn(Session.open(tmp_path / "b.jsonl"), pinned, llm, settings, "go")
+    assert [r["model"] for r in llm.requests] == ["for-t", "pinned"]  # 代码里写死的最优先
+
+
 class Boom(Exception):
     pass
 

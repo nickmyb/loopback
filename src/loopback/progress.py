@@ -67,6 +67,10 @@ class Progress:
         )
         return st
 
+    def latest(self) -> str | None:
+        """正在学的条目；没有的话，就是学习日志里最近的那一篇（比如刚学完、要给整篇打分时）。"""
+        return self.current or (self.log[-1]["item"] if self.log else None)
+
     def suggestions(self, curriculum: Curriculum, k: int = 2) -> list[Item]:
         """先接着学正在学的，再按课程顺序往下排。"""
         ordered = sorted(

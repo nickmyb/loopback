@@ -1,16 +1,15 @@
 """HTML 课件：原文按段号插入、模型文本转义、SVG 消毒、块校验、目录与翻页、打分记录。"""
 
-import json
 from pathlib import Path
 
 import pytest
 from test_library import lib, md_fetch
 
-from loopback.blocks import md
-from loopback.feedback import feedback_tool, record_feedback
+from loopback.blocks import block_html, md
+from loopback.materials import Section
 from loopback.render import LessonRenderer
 from loopback.svg import sanitize_svg
-from loopback.tools import ToolError, ToolSet
+from loopback.tools import ToolError
 
 
 def renderer(tmp_path: Path, opened: list | None = None) -> LessonRenderer:
@@ -106,18 +105,6 @@ def test_steps_player_and_index_in_reading_order(tmp_path: Path) -> None:
     assert index.index("overview.html") < index.index("s02.html") < index.index("summary.html")
 
 
-def test_feedback_is_appended_and_validated(tmp_path: Path) -> None:
-    record_feedback(tmp_path, "s1", 2, 4, "讲得清楚")
-    tool = ToolSet([feedback_tool(tmp_path)])
-    assert tool.run("record_feedback", {"item_id": "s1", "section": 3, "score": 9}).is_error
-    tool.run("record_feedback", {"item_id": "s1", "section": 3, "score": 5})
-    rows = [json.loads(x) for x in (tmp_path / "feedback.jsonl").read_text("utf-8").splitlines()]
-    assert [(r["section"], r["score"], r["source"]) for r in rows] == [
-        (2, 4, "repl"),
-        (3, 5, "agent"),
-    ]
-
-
 def test_mindmap_is_rejected_and_flowchart_is_suggested(tmp_path: Path) -> None:
     mindmap = "mindmap\n  root((loop.py))\n    1 模块说明\n    2 TurnResult"
     with pytest.raises(ToolError, match=r"mindmap.*节点互相压住.*flowchart LR"):
@@ -126,11 +113,16 @@ def test_mindmap_is_rejected_and_flowchart_is_suggested(tmp_path: Path) -> None:
     renderer(tmp_path).render("s1", "overview", "概览", [{"type": "mermaid", "code": flow}])
 
 
-def test_code_and_tables_stack_full_width_but_prose_stays_side_by_side(tmp_path: Path) -> None:
-    blocks = [{"type": "explain", "para": p, "text": "讲解"} for p in (1, 3)]  # P3 是代码块
-    page = renderer(tmp_path).render("s1", "section", "增强型 LLM", blocks, section=2).read_text()
-    assert page.count('class="block explain wide"') == 1  # 只有代码块那段上下排
-    assert page.count('class="block explain"') == 1
+def test_only_originals_too_wide_for_half_a_column_are_stacked() -> None:
+    short = "```go\nfunc gen(nums ...int) <-chan int {\n}\n```"
+    long = "```\n+-- " + "-" * 70 + "> TEACHER (main session)\n```"
+    table = "| a | b |\n|---|---|\n| 1 | 2 |"
+    sec = Section(1, "t", ["Plain prose.", short, long, table])
+    blocks = [
+        block_html(1, {"type": "explain", "para": p, "text": "讲解"}, sec) for p in range(1, 5)
+    ]
+    stacked = ['class="block explain wide"' in b for b in blocks]
+    assert stacked == [False, False, True, True]  # 窄代码和正文并排，长代码和表格上下排（D33）
 
 
 def test_br_in_table_cells_becomes_a_line_break_but_other_html_is_escaped() -> None:

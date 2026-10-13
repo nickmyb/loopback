@@ -7,7 +7,9 @@ MSGS = [{"role": "user", "content": [{"type": "text", "text": "hi"}]}]
 
 def test_official_profile_adds_caching_and_effort() -> None:
     s = Settings.from_env({})
-    req = build_request(s, system="sys", messages=MSGS, tools=[], max_tokens=100, effort="low")
+    req = build_request(
+        s, model=s.model, system="sys", messages=MSGS, tools=[], max_tokens=100, effort="low"
+    )
     assert req["cache_control"] == {"type": "ephemeral"}
     assert req["output_config"] == {"effort": "low"}
     assert "tools" not in req  # 空工具列表不发
@@ -15,7 +17,9 @@ def test_official_profile_adds_caching_and_effort() -> None:
 
 def test_compatible_profile_sends_only_portable_fields() -> None:
     s = Settings.from_env({"ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic"})
-    req = build_request(s, system="sys", messages=MSGS, tools=[{"name": "x"}], max_tokens=100)
+    req = build_request(
+        s, model=s.model, system="sys", messages=MSGS, tools=[{"name": "x"}], max_tokens=100
+    )
     assert set(req) == {"model", "max_tokens", "system", "messages", "tools"}
 
 

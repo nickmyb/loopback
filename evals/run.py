@@ -41,12 +41,12 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv(override=False)
     sanitize_proxy_env(os.environ)
     env = {k: v for k, v in os.environ.items() if k != "LOOPBACK_HOME"}
-    if args.model:
-        env["MODEL_ID"] = args.model
+    env = with_model(env, args.model)
     settings = Settings.from_env(
         {**env, "LOOPBACK_HOME": os.environ.get("LOOPBACK_HOME", "workspace")}
     )
     setup_logging(settings)  # 日志写文件，终端只留进度和结果
+    sut_model = settings.model_for("teacher")  # 被测的是教师
     curriculum = Curriculum.load()  # 只读公共课程：eval 结果不随个人课程变化（D23）
     cases = load_suite(args.suite, args.cases.split(",") if args.cases else None)
     cache = settings.home / "evals" / "cache"
@@ -61,15 +61,13 @@ def main(argv: list[str] | None = None) -> int:
     judge_model = (
         args.judge_model
         or env.get("LOOPBACK_JUDGE_MODEL")
-        or ("claude-sonnet-5-5" if settings.profile.official else settings.model)
+        or ("claude-sonnet-5-5" if settings.profile.official else sut_model)
     )
     warning = (
-        "评审模型与被测模型相同，存在自我偏好风险"
-        if use_judge and judge_model == settings.model
-        else ""
+        "评审模型与被测模型相同，存在自我偏好风险" if use_judge and judge_model == sut_model else ""
     )
     if not args.baseline and not confirm_cost(
-        settings.model, judge_model, len(cases) * args.reps, use_judge, args
+        sut_model, judge_model, len(cases) * args.reps, use_judge, args
     ):
         return 1
     sut = None if args.baseline else AnthropicLLM(settings)
@@ -87,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     run_dir.mkdir(parents=True)
     manifest = {
         "suite": args.suite,
-        "model": settings.model if sut else f"scripted-{args.baseline}",
+        "model": sut_model if sut else f"scripted-{args.baseline}",
         "judge_model": judge_model if use_judge else "-",
         "reps": args.reps,
         "cases": [c.id for c in cases],
@@ -148,6 +146,11 @@ def main(argv: list[str] | None = None) -> int:
         )
     print(f"报告：{report.as_uri()}")
     return 0
+
+
+def with_model(env: dict[str, str], model: str | None) -> dict[str, str]:
+    """命令行指定了被测模型时，同时盖过 MODEL_ID 和 .env 里教师的角色模型（D31）。"""
+    return {**env, "MODEL_ID": model, "LOOPBACK_TEACHER_MODEL": model} if model else env
 
 
 def _judge_llm(env: dict[str, str], judge_model: str) -> AnthropicLLM:

@@ -15,5 +15,8 @@ dist/
 # (docs/decisions.md D6; relocate with LOOPBACK_HOME)
 workspace/
 
+# IDE settings (per machine)
+.idea/
+
 # Claude Code personal approvals/settings (per machine)
 .claude/settings.local.json

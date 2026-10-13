@@ -22,6 +22,7 @@
 uv sync                      # 安装依赖
 cp .env.example .env         # 填入 ANTHROPIC_API_KEY
 uv run loopback              # 开始学习：输入 next 开始或继续，/help 查看命令
+                             # next 4 太长了：给刚学完的那一页打分再继续；/rate 4 一句话：给整篇打分
 uv run loopback trace        # 查看最近一次会话的轨迹
 ```
 
@@ -32,6 +33,7 @@ uv run loopback trace        # 查看最近一次会话的轨迹
 ```text
 /learn            # 按进度开始或继续（等同于 next）
 /learn next       # 下一页
+next 4 太长了      # 给刚学完的那一页打 4 分并继续（直接 next 就是跳过）
 /learn loop.py    # 学指定的文章或文件
 /btw 什么是 MCP？  # 旁支问题用 side chat 问，不打断主线
 ```
@@ -55,7 +57,7 @@ items:
 
 改完后重启 `uv run loopback`，或在 Claude Code 里用 `/mcp` 重连 loopback，然后 `/learn go-pipelines`。
 
-想用 DeepSeek 等 Anthropic 兼容接口，在 `.env` 里设置 `ANTHROPIC_BASE_URL` 和 `MODEL_ID` 即可，见 `.env.example`。
+想用 DeepSeek 等 Anthropic 兼容接口，在 `.env` 里设置 `ANTHROPIC_BASE_URL` 和 `MODEL_ID` 即可，见 `.env.example`。想给某个角色单独指定模型，设置 `LOOPBACK_<角色>_MODEL`，例如 `LOOPBACK_TEACHER_MODEL`。
 
 ## 开发
 

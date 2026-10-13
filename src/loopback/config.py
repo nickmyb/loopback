@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -18,6 +19,7 @@ DEFAULT_MODEL = "claude-opus-5-5"
 DEFAULT_EFFORT = "high"
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 OFFICIAL_HOSTS = ("api.anthropic.com",)
+_ROLE_MODEL = re.compile(r"LOOPBACK_([A-Z][A-Z0-9_]*)_MODEL")  # 例如 LOOPBACK_TEACHER_MODEL（D31）
 
 
 class ConfigError(ValueError):
@@ -42,6 +44,7 @@ class Settings:
     log_level: str
     profile: Profile
     open_browser: bool = True  # 生成课件后自动在浏览器打开
+    role_models: Mapping[str, str] = field(default_factory=dict)  # 按角色指定的模型
 
     @property
     def provider(self) -> str:
@@ -49,6 +52,10 @@ class Settings:
         if self.profile.official:
             return "Anthropic 官方"
         return urlparse(self.base_url).hostname or "?"
+
+    def model_for(self, role: str) -> str:
+        """某个角色该用的模型：设了 LOOPBACK_<角色>_MODEL 就用它，否则用 MODEL_ID。"""
+        return self.role_models.get(role, self.model)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -79,6 +86,11 @@ class Settings:
             log_level=log_level,
             profile=profile,
             open_browser=_flag(env, "LOOPBACK_OPEN_BROWSER", default=True),
+            role_models={
+                m.group(1).lower(): value
+                for key, value in env.items()
+                if value and (m := _ROLE_MODEL.fullmatch(key))
+            },
         )
 
 

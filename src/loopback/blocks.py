@@ -20,6 +20,7 @@ from loopback.tools import ToolError
 
 _MD = MarkdownIt("commonmark", {"html": False}).enable("table")
 _BR = re.compile(r"&lt;br\s*/?&gt;")  # 被转义掉的 <br>：表格单元格里常用它换行
+WIDE_CHARS = 60  # 代码最长一行超过这么多字符，半栏（约 500px）就放不下了（D33）
 # fmt: off
 MERMAID_KINDS = (
     "graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram",
@@ -60,7 +61,7 @@ def block_html(n: int, b: dict[str, Any], section: Any) -> str:
         if not isinstance(p, int) or not 1 <= p <= len(section.paras):
             raise ToolError(f"第 {n} 个块的 para 必须在 1..{len(section.paras)}")
         para = section.paras[p - 1]
-        wide = " wide" if is_table_or_code(para) else ""  # 代码块和表格上下排，原文占满整行
+        wide = " wide" if _too_wide(para) else ""  # 放不进半栏的原文上下排，占满整行
         return (
             f'<section class="block explain{wide}"><div class="original">'
             f'<div class="pnum">P{p}</div>{md(para)}</div><div>{md(b["text"])}</div></section>'
@@ -76,6 +77,15 @@ def block_html(n: int, b: dict[str, Any], section: Any) -> str:
     if kind == "steps":
         return _steps(n, b["frames"])
     return f'<section class="block figure">{_figure(n, b)}</section>'  # mermaid / svg
+
+
+def _too_wide(para: str) -> bool:
+    """原文放不放得进半栏：表格一律放不下；代码块和 ASCII 图看最长的一行（D33）。"""
+    if not is_table_or_code(para):
+        return False
+    if not para.lstrip().startswith("```"):  # 表格
+        return True
+    return max((len(line) for line in para.splitlines()[1:-1]), default=0) > WIDE_CHARS
 
 
 def _figure(n: int, b: dict[str, Any]) -> str:

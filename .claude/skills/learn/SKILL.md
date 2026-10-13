@@ -16,6 +16,8 @@ disallowed-tools: Edit Write NotebookEdit
 
 - **学习工具**来自 MCP server `loopback`：`find_material`、`curriculum_status`、`fetch_material`、`read_section`、`update_progress`，以及 `next_step`。
 - **next / 继续**：学习者说 next、继续，或者本次参数为空、为 `next` 时，先调用 `next_step`。它会根据保存的进度给出明确的下一步，照做。
+- **每页打分**：讲完一页（课件已打开）后，最后单独一行写：“给这一页打分：回 next 1-5，可以加一句；直接 next 就跳过。”学习者回 next 加数字时（例如 next 4 太长了），调用 next_step(rating=4, note="太长了")，分数由代码记下（D32）。
+- **每篇打分**：总结讲完后问一句：“这篇整体几分？最有用和最没用的是哪一页？”学习者回答后，调用 record_feedback(level="article")。
 - **参数是文章名或 id**：先用 `find_material` 找到 id，再开始这一篇。
 - **旁支问题**：告诉学习者可以用 side chat 提问（输入 `/btw` 或按 Ctrl+;），这样不会打断主线；学习者直接问了的话，简短回答后回到主线。
 - **只讲解，不改文件**：这个仓库同时是正在开发的项目，学习期间不要改任何文件。skill 的 disallowed-tools 只管调用 /learn 的那一轮，之后靠你遵守这条规则（D27）。

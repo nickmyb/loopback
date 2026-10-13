@@ -21,14 +21,14 @@
    +-- Claude Code: /learn (subscription) -- MCP stdio --> loopback mcp --> same learning tools + next_step
          (loop, model and transcript belong to Claude Code)
 
- every agent = AgentSpec(prompt file, tool set, effort), run by the SAME agent_loop
+ every agent = AgentSpec(prompt file, tool set, model, effort), run by the SAME agent_loop
  agent_loop(session, spec, llm):
      stream request -> append assistant event -> run tools -> append tool_results event -> repeat
  session = append-only event log (JSONL) --projection--> messages sent to the API
  state   = files under $LOOPBACK_HOME (progress, library, lessons, feedback, sessions, evals, logs)
 ```
 
-- 不同的角色只是 AgentSpec 不同（D2）。目前实际运行的只有教师这一个角色。按角色配置模型在 M6c 加上。
+- 不同的角色只是 AgentSpec 不同（D2）。目前实际运行的只有教师这一个角色；每个角色可以单独配置模型（D31）。
 - 学习能力（课程、材料库、进度、课件、反馈）和前端无关，两个前端用的是同一套工具（D20）。
 - 代码里的 section 就是中文说的“页”：loopback 把一篇材料切成一页一页，“节”只用来说原文自己的结构（D29）。
 - 三个事后很难再改的底层决策，在 core 阶段就定了下来：
@@ -44,7 +44,7 @@
 
 | 文件 | 做什么 |
 |---|---|
-| `src/loopback/config.py` | 从环境变量读出只读的 Settings 和能力档案 Profile；配置日志 |
+| `src/loopback/config.py` | 从环境变量读出只读的 Settings、能力档案 Profile 和按角色的模型（D31）；配置日志 |
 | `src/loopback/llm.py` | `LLM` protocol、Anthropic 的流式实现、请求构造（缓存和 effort 由 Profile 决定） |
 | `src/loopback/session.py` | 只追加的事件日志，以及把它投影成 messages 的规则 |
 | `src/loopback/tools.py` | 工具注册表：校验输入、执行，把异常包成带 `is_error` 的结果 |
@@ -63,13 +63,15 @@
 | `src/loopback/render.py` | 课件的整页：模板、翻页、目录页，以及 render_lesson 工具（D21） |
 | `src/loopback/blocks.py` | 课件的内容块：校验后转成安全的 HTML；mermaid lint |
 | `src/loopback/svg.py` | SVG 消毒 |
-| `src/loopback/feedback.py` | 记录学习者的打分，写进 feedback.jsonl |
+| `src/loopback/feedback.py` | 反馈的记录格式：每页、每篇的分数，带页标题、快照时间、前端、prompt 版本（D32）；`record_feedback` 工具 |
+| `src/loopback/rating.py` | 打分的入口：解析 `next 4`、`/rate 4`；`Rater` 记下刚学完的那一页或那一篇（两个前端共用） |
 | `src/loopback/files.py` | 只能访问 $LOOPBACK_HOME 的文件工具；目前没有角色在用（D17） |
 | `src/loopback/pricing.py` | 按 usage 估算花费和缓存命中率 |
 | `src/loopback/trace.py` | 轨迹：把事件日志整理成“轮 → 模型调用 → 工具调用”（D18） |
-| `src/loopback/repl.py` | 终端 REPL：分发输入、处理 `/` 命令、问学习者打分 |
+| `src/loopback/repl.py` | 终端 REPL：主循环和命令分发（`handle`），`next` 的流程 |
+| `src/loopback/display.py` | 终端里的显示：工具调用提示、一轮结束时的说明、用量和花费、接口错误 |
 | `src/loopback/cli.py` | 命令行入口：REPL，以及 `trace`、`mcp` 两个子命令 |
-| `src/loopback/mcp_server.py` | Claude Code 前端：把学习工具做成 stdio MCP server（D20） |
+| `src/loopback/mcp_server.py` | Claude Code 前端：把学习工具做成 stdio MCP server（D20），外加只有它用的 `next_step`（可以顺带给刚学完的页打分，D32） |
 | `src/loopback/__init__.py` | 包说明 |
 | `src/loopback/prompts/teacher.md` | 教师 prompt，两个前端共用这一份 |
 | `src/loopback/templates/lesson.html` | 课件模板：配色、深色模式、mermaid 出错时的降级显示、分步播放 |
@@ -102,7 +104,7 @@ next -> next_step / curriculum_status      where am I? (progress.json)
      -> explain in the terminal + render_lesson(blocks)
                                            render / blocks / svg -> lessons/<id>/sNN.html, open the browser
      -> update_progress(id, n)             progress.json (atomic write)
-     -> record_feedback(...)               feedback.jsonl
+     -> next 4 / /rate 4 / record_feedback  feedback.jsonl (page or article rating, D32)
 ```
 
 ## 事件日志
@@ -128,7 +130,7 @@ REPL 的每个会话是 `$LOOPBACK_HOME/sessions/<会话>.jsonl`，每行一个�
 | `curriculum.local.yaml` | 个人课程，手写（D23） |
 | `library/<id>/` | 网页原文 `source.md`，以及快照 `sections.json`：切好的页，外加 `source_hash`、`split_version`、`snapshot_at`。项目文件也有快照（D28） |
 | `lessons/<id>/` | HTML 课件和目录页 |
-| `feedback.jsonl` | 打分 |
+| `feedback.jsonl` | 打分：每页、每篇各一个分，带页标题、快照时间、前端、prompt 版本（D32） |
 | `sessions/` | REPL 的事件日志 |
 | `logs/` | 运行日志 |
 | `evals/cache/`、`evals/runs/` | eval 的材料快照，以及每次运行的结果 |
@@ -142,4 +144,5 @@ REPL 的每个会话是 `$LOOPBACK_HOME/sessions/<会话>.jsonl`，每行一个�
 | 工具 | 只有 loopback 的学习工具 | 同一套学习工具，通过 MCP 接入；另外还有 Claude Code 自带的工具 |
 | 学习时只读 | 天然只读：教师没有写文件的工具 | 目前没有保证：第一轮之后 Edit 和 Write 又能用了（D27，M6d 修） |
 | 事件日志和 `/trace` | 有 | 没有。对话记录在 `~/.claude/projects/` 下，M6e 做导入 |
+| 打分 | `next 4`、`/rate 4`，harness 直接记 | 回 `next 4` 时教师调用 `next_step(rating=4)`；整篇由教师调用 `record_feedback` |
 | 助教 | 计划中（M4） | 暂时用 `/btw`，查不了资料。M6d 改成单独的助教会话（D24、D27） |

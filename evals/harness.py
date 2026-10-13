@@ -23,6 +23,7 @@ from evals.cases import Case
 from loopback import agents
 from loopback.config import Settings
 from loopback.curriculum import Curriculum
+from loopback.feedback import Origin
 from loopback.learning import teacher_tools
 from loopback.library import Library, Material
 from loopback.llm import LLM
@@ -93,12 +94,12 @@ def run_trial(
     settings = Settings.from_env({**env, "LOOPBACK_HOME": str(home), "LOOPBACK_OPEN_BROWSER": "0"})
     user_input = prepare_home(home, case, curriculum, cache_home)
     progress, library = Progress(home), Library(home, curriculum)
-    spec = agents.teacher(teacher_tools(home, curriculum, progress, library))
+    spec = agents.teacher(teacher_tools(home, curriculum, progress, library, origin=Origin("eval")))
     session = Session.open(home / "sessions" / "trial.jsonl")
     session.append(
         "meta",
         agent=spec.name,
-        model=settings.model,
+        model=spec.model_in(settings),
         prompt_hash=spec.prompt_hash,
         tools=spec.tools.names,
         eval_case=case.id,

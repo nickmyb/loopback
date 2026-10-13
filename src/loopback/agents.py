@@ -11,6 +11,7 @@ import hashlib
 from dataclasses import dataclass, field
 from importlib import resources
 
+from loopback.config import Settings
 from loopback.tools import Tool, ToolSet
 
 
@@ -22,11 +23,20 @@ class AgentSpec:
     max_tokens: int = 64_000  # 流式请求可以给足，避免中途截断
     effort: str | None = None  # None = 用 settings.effort
     max_steps: int = 40  # 单次用户输入里最多调用模型的次数，防止失控循环
+    model: str | None = None  # 在代码里给这个角色固定一个模型；None = 按配置（D31）
     prompt_hash: str = field(init=False)
 
     def __post_init__(self) -> None:
-        digest = hashlib.sha256(self.system.encode()).hexdigest()[:12]
-        object.__setattr__(self, "prompt_hash", digest)
+        object.__setattr__(self, "prompt_hash", prompt_hash(self.system))
+
+    def model_in(self, settings: Settings) -> str:
+        """这个角色这次用哪个模型：AgentSpec.model > LOOPBACK_<角色>_MODEL > MODEL_ID。"""
+        return self.model or settings.model_for(self.name)
+
+
+def prompt_hash(system: str) -> str:
+    """prompt 的版本号：内容的 sha256 前 12 位。eval 分数和反馈都靠它对应到 prompt 版本。"""
+    return hashlib.sha256(system.encode()).hexdigest()[:12]
 
 
 def load_prompt(name: str) -> str:
