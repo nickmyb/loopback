@@ -12,6 +12,18 @@ items:
   kind: repo
   level: PJ
   group: 项目自学·loopback 本身（边做边学）
+- id: repo-requirements
+  title: 需求清单（docs/requirements.md）
+  url: repo:docs/requirements.md
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
+- id: repo-architecture
+  title: 架构现状（docs/architecture.md）
+  url: repo:docs/architecture.md
+  kind: repo
+  level: PJ
+  group: 项目自学·loopback 本身（边做边学）
 - id: repo-plan
   title: 项目计划（docs/plan.md）
   url: repo:docs/plan.md

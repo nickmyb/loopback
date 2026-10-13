@@ -4,7 +4,8 @@
 - 响应统一成 `Response`：content 是原样的 dict 块（thinking 的签名等字段原封不动），
   下一轮原样回传。这是 preserved thinking 的要求。
 - Claude 专属参数只在 profile.official 时加：自动缓存、effort。
-- 后补（docs/plan.md 第 2 节）：server-side fallback（回传时有剔除规则）、eager_input_streaming。
+- 后补（docs/plan.md「工程化清单」，D13）：server-side fallback（回传时有剔除规则）、
+  eager_input_streaming。
 """
 
 from __future__ import annotations

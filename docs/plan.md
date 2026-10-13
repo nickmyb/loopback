@@ -1,6 +1,8 @@
 # loopback：自学 Claude Code / Codex 的多 agent 终端学习系统
 
-> 定稿：2026-10-12。计划有变动时直接改这份文档，并在 `docs/decisions.md` 里记下原因。
+> 定稿：2026-10-12。2026-10-13 按 D25 分层：需求移到 `docs/requirements.md`，架构移到 `docs/architecture.md`，工作方式只写在 `CLAUDE.md`。
+>
+> 这份文档只管三件事：范围、里程碑和状态，以及 Phase 2/3 已经定下的设计（附录 B）。计划有变动时直接改这里，并在 `docs/decisions.md` 里记下原因。
 
 ## Context
 
@@ -8,94 +10,13 @@
 
 **节奏**：**先把主体（core）做扎实**。主体之外的细节和体力活，先写清楚“在哪里补、补什么、怎么补”，等 core 完成后再做。
 
-**需求清单**（来自 6 轮讨论，下文第 3 节和附录 B 有细节）
-
-| # | 需求 |
-|---|---|
-| R1 | 终端对话；图例和动画放在 HTML 课件里，自动在浏览器打开 |
-| R2 | 每天 1 到 2 篇为主线：先出概览，再交互式逐段讲解，最后出总结；进度存盘，可以跨天续学 |
-| R3 | 旁支问题交给助教，主 agent 的上下文零污染。问题分三类：术语、文中链接详解、材料之间的关联 |
-| R4 | 讲解越简单越好（大白话规则），多用图 |
-| R5 | 有一套从零到 expert 的分级材料；演进清单要保持更新 |
-| R6 | 添加材料要方便，以 Chrome 书签文件夹为主，体验类似阅读清单 |
-| R7 | 大厂真实面试题：来源可追溯，分必刷、常见、拓展三档，参考答案基于学过的材料 |
-| R8 | **Evals 是重点**：课程里有 evals 主线；loopback 自身的效果要可度量、可信 |
-| R9 | 可以自我进化，但只在 eval 护栏之内 |
-| R10 | 不绑死 Claude，DeepSeek 等兼容接口也能跑 |
-| R11 | 工程级：架构、测试、错误处理、安全、可观测性都要有，见第 2 节的清单 |
-
-**已经确定的技术选型**：
-- Python **3.14.8**，用 uv 管理；
-- 官方 `anthropic` SDK，不用任何 agent 框架；
-- `.env` 沿用 `ANTHROPIC_API_KEY` / `MODEL_ID` / `ANTHROPIC_BASE_URL`；
-- 默认模型是 `claude-opus-5-5`。
-
-**plan mode 期间已经写入的文件**（已处理）：
-- `docs/plan.md`：审批后用本计划覆盖；
-- `pyproject.toml`：Python 版本要改成 3.14；
-- 3 个 memory 文件。
+**需求**：R1–R16 见 `docs/requirements.md`。那里是唯一来源，编号只追加。
 
 ---
 
 ## 1. 架构
 
-```
- you ──REPL(cli.py)──┬─ next / free text ──> TEACHER   (main session)
-                     ├─ ?question ─────────> TA        (side session per section)
-                     └─ /commands ─────────> harness code (progress, cost, ...)
-
- every agent = AgentSpec(prompt file, tool set, model, effort)  run by the SAME agent_loop
- agent_loop(session, spec, llm):
-     stream request ─> append assistant event ─> run tools ─> append tool_result events ─> repeat
- session = append-only event log (JSONL)  ──projection──>  messages sent to the API
- state   = files under $LOOPBACK_HOME (progress, library, lessons, feedback, transcripts)
-```
-
-**三个底层决策**：它们事后很难再改，所以必须在 core 阶段就定下来。
-
-1. **会话就是只追加的事件日志**，用 API 的 messages 只是它的一个投影。这个思路来自附录 A.3 的 Managed Agents 一文：会话不等于上下文窗口。好处有四个：
-   - 天然满足 preserved thinking 和 prompt 缓存的要求；
-   - 中断后可以恢复；
-   - eval 和反思员都直接读事件日志；
-   - 压缩只是换一种投影方式，不需要改写历史。
-2. **LLM 通过接口注入**，定义为 `LLM` protocol。生产环境用 Anthropic client，测试时用 `FakeLLM` 按剧本返回预设响应。这样整个 loop 和各个 agent 都能在不花钱的单元测试里跑。
-3. **Prompt 和 skill 都放在文件里**，每次请求都记下它们的 hash。这样 eval 结果和进化记录才能对应到具体是哪个 prompt 版本。
-
-**目录**：采用 src layout，并通过 `uv run loopback` 启动。
-
-```
-loopback/
-├── pyproject.toml  uv.lock  .python-version(3.14)  .env.example  .gitignore  CLAUDE.md  README.md
-├── .github/workflows/ci.yml          # ruff + pytest (no paid calls)
-├── src/loopback/
-│   ├── config.py      # typed Settings from env/.env + capability PROFILE (official/vision/server_tools)
-│   ├── llm.py         # LLM protocol, Anthropic client factory, request builder (caching/effort/fallback by PROFILE)
-│   ├── session.py     # append-only event log + messages projection + invariants
-│   ├── tools.py       # Tool registry: name, schema, handler, read_only; dispatch (exception -> is_error)
-│   ├── loop.py        # agent_loop: streaming, stop_reason handling, usage accounting
-│   ├── agents.py      # AgentSpec + roster (teacher, ta, ask-subagent)
-│   ├── skills.py      # two-layer SkillLoader
-│   ├── extract.py     # HTML/markdown -> clean markdown (dense container + markdownify)
-│   ├── materials.py   # markdown -> sections (+links L1.., images I1..), heading paths
-│   ├── library.py     # fetch + cache in $LOOPBACK_HOME/library/<id>/; outline; wrapped section text
-│   ├── curriculum.py  # curriculum (validated, searchable) + progress.json
-│   ├── learning.py    # teacher tools: find_material, curriculum_status, fetch_material, read_section, update_progress
-│   ├── store.py       # atomic JSON/JSONL writes, schema version field
-│   ├── render.py      # lesson pages: template, nav, index, render_lesson tool
-│   ├── blocks.py      # content blocks -> safe HTML (markdown escape, mermaid lint)
-│   ├── svg.py         # SVG sanitize/validate (no script/external refs, XXE-safe)
-│   ├── feedback.py    # 1-5 ratings per section -> feedback.jsonl
-│   ├── trace.py repo.py repl.py mcp_server.py   # M3a/M3c: trace, self-study, REPL, Claude Code front-end
-│   ├── files.py       # workspace-confined file tools
-│   ├── pricing.py     # usage -> USD estimate, cache hit rate
-│   └── cli.py         # REPL + routing + slash commands
-├── src/loopback/prompts/*.md        src/loopback/skills/*/SKILL.md   (package data, versioned + hashed)
-├── src/loopback/templates/lesson.html  # CSS tokens, light/dark, mermaid (+fallback), steps player
-├── src/loopback/data/curriculum.yaml # shared content (in git), 72 items: L0 docs + evolution list
-├── evals/{run.py,graders.py,judge.py,report.py,suites/...}
-├── tests/                           # FakeLLM-based unit tests, golden sectioning, render snapshots
-└── docs/{plan.md,decisions.md,agent-evolution.md}
-```
+已移到 `docs/architecture.md`。那里描述代码现在的样子，并随代码一起更新。这里保留标题，是为了不打乱后面各节的编号。
 
 ---
 
@@ -118,7 +39,7 @@ loopback/
 | **性能与成本** | 缓存友好，用量可控 | 历史只追加；工具集在会话开始时固定；顶层自动缓存；按角色设置 effort | 以上全部 | 并行执行多个工具调用；缓存预热 |
 | **Prompt 管理** | 有版本，可以追溯 | prompt 放在文件里，每次请求记录 hash | 文件化和 hash | 改动 prompt 时自动触发 eval 回归 |
 | **兼容性** | 能接 DeepSeek 等兼容接口 | `PROFILE` 开关，加上 `diagram` 模板兜底 | PROFILE 开关 | 真机兼容测试；完整的 diagram 模板库 |
-| **文档** | 新人能上手，面试时能讲清楚 | README、`decisions.md` 记录每个决策的选择、备选和理由；一页架构图 | README 和 decisions | 完整的架构文档；CHANGELOG |
+| **文档** | 新人能上手，面试时能讲清楚；同一内容只写一份 | README；`requirements.md` 记需求和验收方式；`architecture.md` 记现状；`decisions.md` 记每个决策的选择、备选和理由；`tests/test_docs.py` 做文档自检（D25） | 以上全部（M6a） | CHANGELOG |
 | **内容质量** | 链接有效，数据格式正确 | `curriculum.yaml` 做 schema 校验；脚本巡检 URL 是否还能打开 | 加载时校验 | 定期巡检；演进清单的季度更新流程 |
 
 ---
@@ -134,10 +55,10 @@ loopback/
 ### Phase 2 扩展（设计已定，见附录 B，按价值排序）
 
 1. 面试官加题库（含 C2 收题）；
-2. 阅读清单：Chrome 书签同步、`/add`、`+L2`；
+2. 阅读清单：Chrome 书签同步、`/add`、`+L2`（存储已在 M3d 提前做好：`curriculum.local.yaml`，目前只能手写）；
 3. 术语表和课件悬停解释、`search_learned`；
 4. 完整课程 C1：经典论文和 Evals 主线；
-5. 备课员、课件设计这两个角色。**只有 eval 或上下文数据显示确实需要时才拆出来**，依据见附录 A.2 那篇“什么时候不该用多 agent”；
+5. 备课员、课件设计这两个角色。**只有 eval 或上下文数据显示确实需要时才拆出来**，依据见演进清单里《When to use multi-agent systems (and when not to)》那篇；
 6. diagram 模板库；
 7. 压缩；
 8. DeepSeek 实测和模型对比 eval；
@@ -152,23 +73,35 @@ loopback/
 
 ## 4. 执行顺序
 
-一次只做一个里程碑。每个做完：
-- 我讲解关键设计和代码；
-- 你运行确认；
-- commit，格式是 `feat: loopback - <topic>`。
+一次只做一个里程碑。做法和四个确认点见 `CLAUDE.md` 的「工作方式」。每个里程碑的蓝图和验收记录放在 `docs/milestones/` 下。
 
-| # | 内容 | 跑通标准 |
-|---|---|---|
-| **P0** | 开工前准备：<br>• 合并写出 `docs/agent-evolution.md`（附录 A）；<br>• `uv self update` 后运行 `uv python install 3.14`；<br>• `docs/plan.md` 换成本计划 | 你审阅新版清单；`uv run python -V` 输出 3.14.8 |
-| **M0** | 工程骨架：<br>• src layout、pyproject（3.14，入口是 `loopback`）、uv.lock；<br>• ruff、pytest、CI；<br>• Settings 和 logging；<br>• CLAUDE.md、README、decisions.md | `uv run loopback` 能启动；CI 通过 |
-| **M1** | 核心运行时：<br>• `llm`、`session`（事件日志）、`tools`、`loop`、`agents`；<br>• 最小 REPL；<br>• caching 和 `/cost` | 能对话；FakeLLM 测试通过，覆盖 tool 配对、错误路径、中断补齐；第二轮起缓存命中 |
-| **M2** | 材料与状态：<br>• `materials`（切节、链接、原图）、`store`（原子写）；<br>• `curriculum.yaml` 初版，内容是官方文档加演进清单；<br>• fetch_material、read_section、progress 三个工具 | Building Effective Agents 生成 sections.json；golden 测试通过 |
-| **M3a ✅** | 可用版（2026-10-12 调整，D18、D19）：<br>• 轨迹工具：`/trace` 和 `loopback trace`；<br>• 项目自学分组：用 loopback 学 loopback；<br>• 启动时在本地显示进度，`next` 由 harness 定位下一节；<br>• REPL 从 cli.py 拆出；<br>• 每个函数补上“做什么”的注释 | 用 Claude 冒烟：学 loop.py，从概览到第 1 节，讲解时按行号讲；`/trace` 正常 |
-| **M3c ✅** | Claude Code 前端（D20）：<br>• `loopback mcp`：stdio MCP server，暴露同一份学习工具和 `next_step`；<br>• 项目 `.mcp.json`；<br>• `/learn` skill，注入 teacher.md；<br>• 助教用 side chat（`/btw`） | 在 Claude Code 里（Pro 订阅）用 `/learn next` 跑通：next_step → fetch_material → update_progress → 概览 |
-| **M3b ✅** | HTML 课件（D21）：<br>• `render_lesson` 支持 8 种块，原文按段号插入；<br>• SVG 消毒；<br>• mermaid 三层防线；<br>• 目录和翻页；<br>• 每节打分存进 `feedback.jsonl`；<br>• skill 设为只读 | Claude Code 冒烟：loop.py 的概览和第 1 节课件一次生成成功；无头 Chrome 截图确认图、分步播放、折叠块都能显示 |
-| **M4** | 助教：<br>• `?` 旁支对话、follow_link、`ask`；<br>• 官方接口时带 web_search | 隔离测试通过（确定性检查）；`?L2` 能讲清楚 |
-| **M5 🟡** | Evals 核心（D22）：<br>• `evals/` 包含 runner、graders、judge、stats、report、calibrate；<br>• teacher 套件 11 个用例（section、start、finish）；<br>• oracle 和 null 基线 | ✅ oracle 11/11、null 0/11；92 个单元测试通过<br>⏳ 付费 baseline（需要你确认花费）<br>⏳ 评审校准（需要你标注约 30 条，一致率 ≥90%） |
-| — | **core 完成**，然后按第 3 节进入 Phase 2，再进入 Phase 3；工程化清单里的“后补”项穿插在其中完成 | — |
+状态用五个标记：
+- ✅ 完成，后面附提交号；
+- 🟡 部分完成；
+- 🔄 进行中；
+- ⏸ 延后；
+- ⬜ 未开始。
+
+表格按实际执行的顺序排列。编号只追加，不重排（D25）。
+
+| # | 状态 | 内容 | 跑通标准 |
+|---|---|---|---|
+| **P0** | ✅ e56758b | 开工前准备：<br>• 合并写出 `docs/agent-evolution.md`，改动明细见 `docs/milestones/P0.md`；<br>• `uv self update` 后运行 `uv python install 3.14`；<br>• `docs/plan.md` 换成本计划 | 你审阅新版清单；`uv run python -V` 输出 3.14.8 |
+| **M0** | ✅ 9d8b6c1 | 工程骨架：<br>• src layout、pyproject（3.14，入口是 `loopback`）、uv.lock；<br>• ruff、pytest、CI；<br>• Settings 和 logging；<br>• CLAUDE.md、README、decisions.md | `uv run loopback` 能启动；CI 通过 |
+| **M1** | ✅ 1d068a5 | 核心运行时：<br>• `llm`、`session`（事件日志）、`tools`、`loop`、`agents`；<br>• 最小 REPL；<br>• caching 和 `/cost` | 能对话；FakeLLM 测试通过，覆盖 tool 配对、错误路径、中断补齐；第二轮起缓存命中 |
+| **M2** | ✅ cb22a67 | 材料与状态：<br>• `materials`（切节、链接、原图）、`store`（原子写）；<br>• `curriculum.yaml` 初版，内容是官方文档加演进清单；<br>• fetch_material、read_section、progress 三个工具 | Building Effective Agents 生成 sections.json；golden 测试通过 |
+| **M3a** | ✅ f063dd5 | 可用版（2026-10-12 调整，D18、D19）：<br>• 轨迹工具：`/trace` 和 `loopback trace`；<br>• 项目自学分组：用 loopback 学 loopback；<br>• 启动时在本地显示进度，`next` 由 harness 定位下一节；<br>• REPL 从 cli.py 拆出；<br>• 每个函数补上“做什么”的注释 | 用 Claude 冒烟：学 loop.py，从概览到第 1 节，讲解时按行号讲；`/trace` 正常 |
+| **M3c** | ✅ 6d837a5 | Claude Code 前端（D20）：<br>• `loopback mcp`：stdio MCP server，暴露同一份学习工具和 `next_step`；<br>• 项目 `.mcp.json`；<br>• `/learn` skill，注入 teacher.md；<br>• 助教用 side chat（`/btw`） | 在 Claude Code 里（Pro 订阅）用 `/learn next` 跑通：next_step → fetch_material → update_progress → 概览 |
+| **M3b** | ✅ c922960 | HTML 课件（D21）：<br>• `render_lesson` 支持 8 种块，原文按段号插入；<br>• SVG 消毒；<br>• mermaid 三层防线；<br>• 目录和翻页；<br>• 每节打分存进 `feedback.jsonl`；<br>• skill 设为只读（后来发现只管一轮，见 D27） | Claude Code 冒烟：loop.py 的概览和第 1 节课件一次生成成功；无头 Chrome 截图确认图、分步播放、折叠块都能显示 |
+| **M5** | 🟡 570f94e | Evals 核心（D22）：<br>• `evals/` 包含 runner、graders、judge、stats、report、calibrate；<br>• teacher 套件 11 个用例（section、start、finish）；<br>• oracle 和 null 基线 | ✅ oracle 11/11、null 0/11；92 个单元测试通过<br>⏳ 付费 baseline（花费确认后再跑）<br>⏳ 评审校准（需要你标注约 30 条，一致率 ≥90%） |
+| **M3d** | 🟡 待验收 | 个人课程（2026-10-13 插入，D23）：<br>• `$LOOPBACK_HOME/curriculum.local.yaml` 追加在公共课程后面，校验规则相同；<br>• 手写错误给出带文件名的说明；<br>• 这是阅读清单（Phase 2 第 2 项）的最小版 | 98 个单元测试通过；把 go.dev/blog/pipelines 加进个人课程后，`/mcp` 重连，`/learn go-pipelines` 能学 |
+| **M6a** | ✅ | 复盘修复：文档分层（D25、D26，蓝图见 `docs/milestones/M6.md`）：<br>• CLAUDE.md 只放规则、工作方式和文档地图；<br>• 新增 requirements.md、architecture.md、`docs/milestones/`；<br>• `.claude/rules/` 放按路径加载的规则；<br>• 补记 D24–D27；<br>• 文档自检测试 | `tests/test_docs.py` 通过：模块表和实际文件一致、每个里程碑都有状态、编号连续、确认点叫法统一 |
+| **M6b** | ⬜ | 复盘修复：课件和切节：<br>• 原文里的代码块、ASCII 图和表格不折行，含有它们的段落改成上下排；<br>• 全篇结构图不用 mindmap，渲染后检测节点重叠；<br>• loopback 的单位改叫“页”，提到内容位置时写原文标题；<br>• 切节时去掉分隔线，表格和它的引导句不拆开；<br>• 开始学一篇时冻结材料快照，页号不随原文变化 | 架构图、目录树、工程化清单三处改前改后的截图对比；repo-plan 没有只含分隔线的页；学习途中改原文不影响页号 |
+| **M6c** | ⬜ | 复盘修复：运行时：<br>• AgentSpec 可以按角色配置模型；<br>• 反馈分页和篇两级，回 `next 4` 就是打 4 分并继续，两个前端都主动问 | FakeLLM 测试覆盖按角色配置模型；两个前端各学一页，都能记下页级评分 |
+| **M6d** | ⬜ | 复盘修复：Claude Code 角色入口（D27）：<br>• `.claude/agents/` 里写教师和助教的定义，工具只读；<br>• `loopback study` 打开 agent view；<br>• `/learn` 用 hooks 兜底；<br>• settings 里用 deny 规则挡住 `.env` | 连续两轮实测，Edit 和 Write 都不可用；`@loopback-ta` 能查仓库和官方文档 |
+| **M6e** | ⬜ | 复盘修复：日志和助教问题：<br>• `loopback import-cc` 把 Claude Code 的对话日志转成事件日志：按响应去重、合并 `/btw` 的问题、算出隐式信号；<br>• 附录 B.2 按 17 条真实问题改写；<br>• 这 17 条问题作为助教 eval 的第一批用例 | 导入学习会话后能用 `loopback trace` 查看；调用次数和用量与 Claude Code 的记录一致（104 次调用） |
+| **M4** | ⬜ | 助教（D24：之前延后，现在按真实提问重新设计）：<br>• REPL 里用 `?` 开旁支会话，只给只读工具：follow_link、查仓库，官方接口时加 web_search；<br>• `teacher_context` 读学习会话当前的位置；<br>• 问题记进 `questions.jsonl`；<br>• 委派工具 `ask` | 隔离测试通过（确定性检查）；助教 eval 的首批用例能跑；`?L2` 能讲清楚 |
+| — | — | **core 完成**，然后按「范围划分」进入 Phase 2，再进入 Phase 3；工程化清单里的“后补”项穿插在其中完成 | — |
 
 ---
 
@@ -202,9 +135,12 @@ loopback/
 | 备课员 / 课件设计 | Phase 2，有数据支持才拆 | 读全文和画大 SVG 都不进教师的上下文 |
 | 反思员 | Phase 3 | 读 transcript，更新画像，提出修改 diff |
 
-- 子 agent 一律拿不到 `ask`，避免无限委派。
+- `ask` 是 M4 计划中的委派工具：教师或助教调用它时，会起一个上下文全新、只有只读工具的子 agent 去查，只把最终答案交回来。子 agent 一律拿不到 `ask`，所以委派最多一层，不会无限递归。它和 Claude Code 里向你提选择题的 `AskUserQuestion` 不是一回事。
+- **在 Claude Code 里怎么落地**（D27）：直接跟你对话的角色（教师、助教，以后的面试官）各是 `.claude/agents/` 里的一份定义，从 agent view 用 `@名字` 启动；不跟你对话的角色（备课员、课件设计、委派）是子 agent，由教师调用；反思员由命令批量运行。
 
 ### B.2 助教的三类问题
+
+> 2026-10-13：学完两篇项目文档后，按 17 条真实的 `/btw` 提问重新归纳了问题类型，这张表在 M6e 更新（D24）。
 
 | 类型 | 你怎么问 | 用到的工具 | 结果存到哪 | 阶段 |
 |---|---|---|---|---|
@@ -223,7 +159,7 @@ loopback/
 
 ### B.4 阅读清单和数据归属
 
-- **添加入口**：Chrome 书签文件夹 `loopback` 是主入口，在 `/sync` 时读取 `~/.config/google-chrome/Default/Bookmarks`；另有 `+L2` 和 `/add` 作为补充。
+- **添加入口**：Chrome 书签文件夹 `loopback` 是主入口，在 `/sync` 时读取 `~/.config/google-chrome/Default/Bookmarks`；另有 `+L2` 和 `/add` 作为补充。这些入口都写进 `$LOOPBACK_HOME/curriculum.local.yaml`（D23）。
 - **公共内容进 git**：代码、`curriculum.yaml`、`interview/bank.yaml`、skills、evals 用例。
 - **个人状态放在 `$LOOPBACK_HOME`**（默认 `./workspace`，gitignore 掉）：进度、阅读清单、术语表、反馈、课件、原文、事件日志、作答记录。想备份可以单独建一个私有仓库。
 
@@ -269,7 +205,7 @@ loopback/
 | L2 技能 | skill、范例库、教学 prompt | 失败聚类，提出 diff，训练集上迭代 | 测试集上的提升超过噪声底线、其他指标不退化，并且**你批准**，才合并；记入 `evolution-log` |
 | L3 代码和安全规则 | — | 不自动修改，只提建议 | — |
 
-- **反馈信号**：每节打 1 到 5 分、`/bad`，以及隐式信号（`/simpler` 的次数、每节提问数、自测题、面试分）。从 M3 开始采集。
+- **反馈信号**：每节打 1 到 5 分、`/bad`，以及隐式信号（`/simpler` 的次数、每节提问数、自测题、面试分）。从 M3 开始采集。不过 Claude Code 前端实际上几乎没采集到：M6c 改成每页、每篇两级评分，M6e 从对话日志里算出隐式信号。
 
 ### B.8 课程（C1，Phase 2 完成）
 
@@ -294,94 +230,6 @@ loopback/
 
 ---
 
-## 附录 A：演进清单的改动明细（2026-10-12，P0 时合并写出 `docs/agent-evolution.md`）
+## 附录 A：演进清单的改动明细
 
-- **核对方法**：对照 anthropic.com 的 sitemap，以及 engineering、news、research 三个栏目和 claude.com/resources/articles，逐篇确认日期。
-- **范围**：只覆盖 Anthropic 这一条线。OpenAI、Codex 和经典论文放进 C1。
-- **原文件**：`~/Downloads` 里的原文件不动。
-
-### A.1 旧条目修正
-
-| 条目 | 修正 |
-|---|---|
-| #15 Agent Skills 首次发布 | 补上链接 https://www.anthropic.com/news/skills ，2025-10-16 |
-| #23 Equipping agents…Agent Skills | 日期改为 **2025-10-16**（原写 2026.01），移到阶段七 |
-| #24 Building agents with the Claude Agent SDK | 日期改为 **2025-09-29**（原写 2026.02），同一天 SDK 改名。链接改为 claude.com/resources/articles/building-agents-with-the-claude-agent-sdk |
-| #25 Quantifying infrastructure noise | 日期改为 **2026-02-05**（原写 2026.03） |
-| 补漏：Managing context on the Claude Developer Platform（2025-09-29） | context editing 加 memory tool，两者合用比基线高 39%，单独用 context editing 省 84% 的 token |
-
-### A.2 阶段十一　多 agent 实战与长时运行的 harness（2026.01–03）
-
-| 日期 | 文章 | 要点 |
-|---|---|---|
-| 01-23 | When to use multi-agent systems (and when not to) | 三种情况才用：上下文被污染、任务可并行、工具超过 20 个。token 多花 3 到 10 倍；按上下文边界拆 |
-| 02-05 | ⭐ Building a C compiler with a team of parallel Claudes | 16 个 Claude 用 Docker 加 Git 协作，靠任务锁分工。2 周、2000 次会话、2 万美元，写出 10 万行，能编译 Linux 6.9。关键是测试驱动，用 GCC 当参照 |
-| 02-18 | ⭐ Measuring AI agent autonomy in practice | 最长自主运行时间从 25 分钟到 45 分钟；老用户 40% 用全自动并且更常中途打断；Claude 主动提问的次数是人打断次数的 2 倍以上 |
-| 03-05 | Common workflow patterns for AI agents | 顺序、并行、评估-优化三种模式，可以嵌套，先从单 agent 开始 |
-| 03-24 | ⭐ Harness design for long-running application development | 生成器配独立评估器（用 Playwright 实测），迭代 5 到 15 轮，成本 20 倍。主观标准拆成可打分的项。Opus 4.6 不再需要上下文重置 |
-| 03-25 | ⭐ How we built Claude Code auto mode | 93% 的权限提示被点了通过；两层防御；分类器两阶段，误杀率从 8.5% 降到 0.4% |
-
-### A.3 阶段十二　把 harness 交给平台托管（2026.04）
-
-| 日期 | 文章 | 要点 |
-|---|---|---|
-| 04-02 | Agent harness design: 3 patterns | 用通用工具；让代码执行决定哪些结果进上下文；skills 按需加载；缓存友好的排列 |
-| 04-08 | ⭐ Scaling Managed Agents: Decoupling the brain from the hands | harness 的假设会随模型变强而过时；推理和沙箱分离；**会话不等于上下文窗口**，会话是只追加的事件日志；一个大脑配多个手 |
-| 04-09 | ⭐ Trustworthy agents in practice | 模型、指令、工具、环境四层一起做；用户审批整个计划；防注入靠三道防线 |
-| 04-10 | ⭐ Multi-agent coordination patterns | 生成-验证、编排-子 agent、消息总线、共享状态等五种模式，从生成-验证起步 |
-| 04-23 | An update on recent Claude Code quality reports（事故复盘） | 推理档降级、缓存 bug 每轮清掉 thinking、新加的字数限制，三层叠加导致质量下降。harness 跨层改动必须整体回归 |
-| 04-23 | Memory for Claude Managed Agents | 记忆就是文件，可以限定作用域、可以审计、能并发读写；Rakuten 的错误率降了 97% |
-
-### A.4 阶段十三　自我改进、纵深安全与协议升级（2026.05–07）
-
-| 日期 | 文章 | 要点 |
-|---|---|---|
-| 05-19 | ⭐ New in Managed Agents: dreaming, outcomes, multiagent orchestration | **dreaming**：回看过去的会话来自我改进，Harvey 的完成率提升约 6 倍；**outcomes**：独立评分器检验，迭代到达标；**多 agent 编排**：子 agent 共享文件系统 |
-| 05-25 | ⭐ How we contain Claude across products | 环境隔离优先；沙箱加 auto mode 让权限提示减少 84%；项目配置要等用户同意后才解析；出站流量只放行本会话的令牌 |
-| 06-10 | ⭐ The evolution of agentic surfaces | 演进三步：纯 API → 用 Agent SDK 自己管 harness → Managed Agents 全托管；首 token 延迟降低约 60%；用 Vault 隔离凭证 |
-| 06-18 | Steering Claude Code: CLAUDE.md, skills, hooks, subagents | 四种机制各自什么时候用；适合在 L0 配合官方文档读 |
-| 07-28 | ⭐ MCP 2026-07-28 spec: stateless core | 改成无状态的请求/响应，可以部署到 serverless；Apps 和 Tasks 变成扩展；认证对齐 OAuth / OIDC |
-
-### A.5 阶段十四　多 agent 的风险与长上下文经济学（2026.08–10）
-
-| 日期 | 文章 | 要点 |
-|---|---|---|
-| 08-13 | ⭐ Patterns and problems in multiagent systems | 30 个 agent 里 18 个建了同名分支；一个任务队列 240 万次请求只接下 117 个任务；小组讨论准确率 17% 到 36%，单独判断是 100%；目标冲突会升级成对抗 |
-| 09-24 | Coding sessions use more context: Opus 5.5 | 单次请求的上下文增长 2.6 倍；输入输出比从 189:1 到 324:1；缓存价格降了 60% |
-| 10-09 | ⭐ Investigating unintended model actions | 4 类越界行为；应对是自动检测、收紧联网、集中管理基础设施 |
-
-### A.6 里程碑速查
-
-- **模型**：
-  - Opus 4.5（2025-11-24）
-  - Opus 4.6（2026-02-05）
-  - Sonnet 4.6（02-17）
-  - Mythos Preview（04-07）
-  - Opus 4.7（04-16）
-  - Opus 4.8（05-28）
-  - Fable 5 / Mythos 5（06-09）
-  - Sonnet 5（06-30）
-  - Opus 5（07-24）
-  - Opus 5.5（09-22）
-- **Claude Code**：
-  - routines（04-14）
-  - 桌面版为并行 agent 重新设计（04-14）
-  - agent view（05-11）
-  - dynamic workflows（05-28）
-  - artifacts（06-18）
-  - 自托管环境（08-06）
-  - auto mode 成为默认（08-07）
-  - TypeScript mods（10-01）
-- **平台**：
-  - Managed Agents（04-08）
-  - Claude Tag（06-23）
-  - Claude in Chrome 正式发布（08-26）
-  - Cowork 与聊天合并（09-16）
-
-### A.7 演进主线（新增五步）
-
-1. 多 agent 实战与自主权限；
-2. 托管化：会话不等于上下文窗口；
-3. 自我改进：memory、dreaming、outcomes；
-4. 纵深安全：containment；
-5. 协议无状态化与上下文经济学。
+已移到 `docs/milestones/P0.md`。那是 P0 当时的记录，冻结不改。

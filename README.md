@@ -6,7 +6,13 @@
 - **旁支问题**：学习中冒出的新问题交给“助教”回答，不打断主线，也不占用主 agent 的上下文。
 - **效果可度量**：自带 evals，“讲得好不好”用数据说话，不靠感觉。
 
-> 当前状态：**M3b**：逐节学习并生成 HTML 课件（原文对照、mermaid、分步动画、自测题），项目自学，轨迹查看；终端 REPL 和 Claude Code（`/learn`，走订阅）两种用法。路线图见 [docs/plan.md](docs/plan.md)，设计决策见 [docs/decisions.md](docs/decisions.md)，学习材料见 [docs/agent-evolution.md](docs/agent-evolution.md)。
+> 已经能做的：逐节学习，并生成 HTML 课件（原文对照、mermaid 图、分步动画、自测题）；项目自学；轨迹查看；evals。有两种用法：终端 REPL，以及 Claude Code 里的 `/learn`（走订阅）。
+>
+> 当前进度见 [docs/plan.md](docs/plan.md) 的「执行顺序」。其他文档：
+> - 需求：[docs/requirements.md](docs/requirements.md)
+> - 架构：[docs/architecture.md](docs/architecture.md)
+> - 设计决策：[docs/decisions.md](docs/decisions.md)
+> - 学习材料：[docs/agent-evolution.md](docs/agent-evolution.md)
 
 ## 快速开始
 
@@ -31,6 +37,23 @@ uv run loopback trace        # 查看最近一次会话的轨迹
 ```
 
 第一次使用时，Claude Code 会询问是否启用 `.mcp.json` 里的 `loopback` MCP server，选择允许即可。进度保存在 `workspace/progress.json`，和 `uv run loopback` 共用。
+
+### 学课程表以外的文章
+
+把文章写进 `workspace/curriculum.local.yaml`。格式和 `src/loopback/data/curriculum.yaml` 相同，这个文件不进 git：
+
+```yaml
+version: 1
+items:
+- id: go-pipelines
+  title: "Go Concurrency Patterns: Pipelines and cancellation"   # 值里有冒号要加引号
+  url: https://go.dev/blog/pipelines
+  kind: blog
+  level: EX
+  group: 课外·Go 并发
+```
+
+改完后重启 `uv run loopback`，或在 Claude Code 里用 `/mcp` 重连 loopback，然后 `/learn go-pipelines`。
 
 想用 DeepSeek 等 Anthropic 兼容接口，在 `.env` 里设置 `ANTHROPIC_BASE_URL` 和 `MODEL_ID` 即可，见 `.env.example`。
 
@@ -60,7 +83,7 @@ uv run python -m evals.calibrate score <run_dir>/labels.csv
 |---|---|
 | `src/loopback/` | 源码：配置、agent 循环、工具、渲染等 |
 | `tests/` | 单元测试，用 FakeLLM，不花钱 |
-| `docs/` | 计划、设计决策、学习材料 |
+| `docs/` | 需求、架构、计划、设计决策、里程碑记录、学习材料 |
 | `workspace/` | 个人状态：进度、课件、日志等。不进 git，路径可以用 `LOOPBACK_HOME` 修改 |
 
 ## License
