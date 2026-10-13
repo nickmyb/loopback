@@ -1,6 +1,8 @@
 """课程表（公共内容，进 git）+ 学习进度（个人状态，在 $LOOPBACK_HOME，docs/decisions.md D6）。
 
 课程表在 src/loopback/data/curriculum.yaml，加载时做校验：字段齐全、id 唯一、kind 合法。
+个人想学的课外文章写在 $LOOPBACK_HOME/curriculum.local.yaml（格式相同，不进 git），
+加载时追加在公共课程后面，id 不能和公共课程重复（D23）。
 进度在 progress.json：每个条目的状态（todo / in_progress / done）、当前节、学完后的一句话总结，
 外加一条按日期记的学习日志。每天新开一个会话时，就靠这份文件续上（演进清单 #19）。
 """
@@ -8,7 +10,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import date
 from difflib import SequenceMatcher
 from importlib import resources
@@ -21,6 +23,8 @@ from loopback.store import read_json, write_json
 from loopback.tools import ToolError
 
 KINDS = {"doc", "blog", "research", "news", "paper", "report", "spec", "video", "repo"}
+REQUIRED = ("id", "title", "url", "kind", "level", "group")
+LOCAL_FILE = "curriculum.local.yaml"  # $LOOPBACK_HOME 下的个人课程（D23）
 PROGRESS_VERSION = 1
 
 
@@ -52,39 +56,55 @@ class Item:
         return f"[{self.id}] {self.title}{flags}（{self.level} · {self.group}{when}）"
 
 
+def _parse_items(text: str, source: str, seen: set[str]) -> list[Item]:
+    """解析并校验一份课程表 YAML。seen 在多份文件间共用，保证合并后 id 仍然唯一；报错带上文件名。"""
+    try:
+        data = yaml.safe_load(text) or {}
+    except yaml.YAMLError as e:  # 手写的个人课程表最常见的错：标题里有冒号却没加引号
+        raise CurriculumError(f"{source}: 不是合法的 YAML（含冒号的值要加引号）：{e}") from None
+    if not isinstance(data, dict):
+        raise CurriculumError(f"{source}: 顶层应该是 version 和 items 两个字段")
+    items, known = [], {f.name for f in fields(Item)}
+    for n, raw in enumerate(data.get("items") or [], 1):
+        missing = [k for k in REQUIRED if not raw.get(k)] if isinstance(raw, dict) else REQUIRED
+        if missing:
+            raise CurriculumError(f"{source}: item #{n} 缺少字段：{', '.join(missing)}")
+        if raw["id"] in seen:
+            raise CurriculumError(f"{source}: 重复的 id：{raw['id']}")
+        if raw["kind"] not in KINDS:
+            raise CurriculumError(f"{source}: {raw['id']} 的 kind={raw['kind']!r} 不合法")
+        if unknown := sorted(set(raw) - known):
+            raise CurriculumError(f"{source}: {raw['id']} 有不认识的字段：{', '.join(unknown)}")
+        url = str(raw["url"])
+        if url.startswith("repo:"):  # 项目自学条目：仓库内的相对路径，不许 .. 和绝对路径
+            if url[5:].startswith("/") or ".." in Path(url[5:]).parts:
+                raise CurriculumError(f"{source}: {raw['id']} 的 repo 路径必须是仓库内的相对路径")
+        elif not url.startswith(("https://", "http://")):
+            raise CurriculumError(f"{source}: {raw['id']} 的 url 必须是 http(s) 或 repo:")
+        seen.add(raw["id"])
+        items.append(Item(**{k: (str(v) if k == "date" else v) for k, v in raw.items()}))
+    return items
+
+
 class Curriculum:
     def __init__(self, items: list[Item]) -> None:
         self.items = items
         self.by_id = {i.id: i for i in items}
 
     @classmethod
-    def load(cls, path: Path | None = None) -> Curriculum:
-        """读取并校验课程表 YAML（默认读包内的 data/curriculum.yaml）；任何一条不合法就报错。"""
+    def load(cls, path: Path | None = None, home: Path | None = None) -> Curriculum:
+        """读取并校验课程表：先读公共课程表（默认是包内的 data/curriculum.yaml），
+        给了 home 时，再把 $LOOPBACK_HOME/curriculum.local.yaml 的个人条目追加在后面（D23）。"""
         text = (
             path.read_text(encoding="utf-8")
             if path
             else resources.files("loopback").joinpath("data/curriculum.yaml").read_text("utf-8")
         )
-        data = yaml.safe_load(text) or {}
-        items, seen = [], set()
-        for n, raw in enumerate(data.get("items", []), 1):
-            missing = [
-                k for k in ("id", "title", "url", "kind", "level", "group") if not raw.get(k)
-            ]
-            if missing:
-                raise CurriculumError(f"item #{n} 缺少字段：{', '.join(missing)}")
-            if raw["id"] in seen:
-                raise CurriculumError(f"重复的 id：{raw['id']}")
-            if raw["kind"] not in KINDS:
-                raise CurriculumError(f"{raw['id']} 的 kind={raw['kind']!r} 不合法")
-            url = str(raw["url"])
-            if url.startswith("repo:"):  # 项目自学条目：仓库内的相对路径，不许 .. 和绝对路径
-                if url[5:].startswith("/") or ".." in Path(url[5:]).parts:
-                    raise CurriculumError(f"{raw['id']} 的 repo 路径必须是仓库内的相对路径")
-            elif not url.startswith(("https://", "http://")):
-                raise CurriculumError(f"{raw['id']} 的 url 必须是 http(s) 或 repo:")
-            seen.add(raw["id"])
-            items.append(Item(**{k: (str(v) if k == "date" else v) for k, v in raw.items()}))
+        seen: set[str] = set()
+        items = _parse_items(text, path.name if path else "curriculum.yaml", seen)
+        local = home / LOCAL_FILE if home else None
+        if local and local.exists():
+            items += _parse_items(local.read_text(encoding="utf-8"), str(local), seen)
         return cls(items)
 
     def get(self, item_id: str) -> Item:

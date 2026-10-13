@@ -38,7 +38,7 @@ INSTRUCTIONS = (
 
 def build_server(settings: Settings) -> Server[Any]:
     """装配 MCP server：加载课程、进度、材料库，把学习工具挂到 tools/list 和 tools/call 上。"""
-    curriculum = Curriculum.load()
+    curriculum = Curriculum.load(home=settings.home)
     progress = Progress(settings.home)
     library = Library(settings.home, curriculum)
     opener = open_in_browser if settings.open_browser else (lambda _p: None)

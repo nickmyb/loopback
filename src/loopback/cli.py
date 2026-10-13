@@ -92,7 +92,7 @@ def learn(settings: Settings) -> int:
     if dropped:
         log.warning("ignored unsupported proxy env vars: %s", ", ".join(dropped))
     try:
-        curriculum = Curriculum.load()
+        curriculum = Curriculum.load(home=settings.home)
     except CurriculumError as e:
         print(f"课程表错误：{e}", file=sys.stderr)
         return 2

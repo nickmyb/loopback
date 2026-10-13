@@ -47,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
         {**env, "LOOPBACK_HOME": os.environ.get("LOOPBACK_HOME", "workspace")}
     )
     setup_logging(settings)  # 日志写文件，终端只留进度和结果
-    curriculum = Curriculum.load()
+    curriculum = Curriculum.load()  # 只读公共课程：eval 结果不随个人课程变化（D23）
     cases = load_suite(args.suite, args.cases.split(",") if args.cases else None)
     cache = settings.home / "evals" / "cache"
     try:  # 1) 冻结材料快照：唯一需要联网抓材料的地方

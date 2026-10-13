@@ -9,7 +9,7 @@ import anyio
 from mcp import Client
 
 from loopback.config import Settings
-from loopback.curriculum import Progress
+from loopback.curriculum import LOCAL_FILE, Progress
 from loopback.mcp_server import build_server
 
 
@@ -73,3 +73,13 @@ def test_progress_written_by_another_front_end_is_picked_up(tmp_path: Path) -> N
 
     [nxt] = call(tmp_path, [other_front_end_writes])
     assert "[repo-plan]" in nxt.content[0].text and "第 1 节" in nxt.content[0].text
+
+
+def test_local_curriculum_items_are_visible_over_mcp(tmp_path: Path) -> None:
+    (tmp_path / LOCAL_FILE).write_text(
+        "items:\n- {id: go-pipelines, title: Go Pipelines, url: https://go.dev/blog/pipelines,"
+        " kind: blog, level: EX, group: g}\n",
+        encoding="utf-8",
+    )
+    [found] = call(tmp_path, [lambda c: c.call_tool("find_material", {"query": "pipelines"})])
+    assert "[go-pipelines]" in found.content[0].text
