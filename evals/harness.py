@@ -22,11 +22,13 @@ import anthropic
 from evals.cases import Case
 from loopback import agents
 from loopback.config import Settings
-from loopback.curriculum import Curriculum, Progress
-from loopback.learning import next_message, teacher_tools
+from loopback.curriculum import Curriculum
+from loopback.learning import teacher_tools
 from loopback.library import Library, Material
 from loopback.llm import LLM
 from loopback.loop import run_turn
+from loopback.materials import SPLIT_VERSION
+from loopback.progress import Progress, next_message
 from loopback.session import Session
 
 
@@ -55,7 +57,9 @@ def snapshot_materials(cases: list[Case], curriculum: Curriculum, cache_home: Pa
     library = Library(cache_home, curriculum)
     hashes = {}
     for item in sorted({c.item for c in cases}):
-        library.get(item)
+        # 切页规则升级了：用缓存的原文按新规则重切（不联网），eval 测的是当前的规则
+        if library.get(item).split_version < SPLIT_VERSION:
+            library.refresh(item)
         data = (cache_home / "library" / item / "sections.json").read_bytes()
         hashes[item] = hashlib.sha256(data).hexdigest()[:12]
     return hashes
@@ -66,9 +70,9 @@ def prepare_home(home: Path, case: Case, curriculum: Curriculum, cache_home: Pat
     shutil.copytree(cache_home / "library" / case.item, home / "library" / case.item)
     progress = Progress(home)
     total = len(Library(home, curriculum).get(case.item).sections)
-    if case.kind == "section":  # 停在上一节，next 会要求讲第 section 节
+    if case.kind == "section":  # 停在上一页，next 会要求讲第 section 页
         progress.update(case.item, section=(case.section or 1) - 1, n_sections=total)
-    elif case.kind == "finish":  # 所有节都讲完了，next 会要求做总结
+    elif case.kind == "finish":  # 所有页都讲完了，next 会要求做总结
         progress.update(case.item, section=total, n_sections=total)
     if case.kind == "start":
         return case.say or ""

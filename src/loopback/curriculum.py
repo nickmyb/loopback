@@ -1,31 +1,25 @@
-"""课程表（公共内容，进 git）+ 学习进度（个人状态，在 $LOOPBACK_HOME，docs/decisions.md D6）。
+"""课程表：公共内容，进 git（docs/decisions.md D6）。学习进度在 progress.py。
 
 课程表在 src/loopback/data/curriculum.yaml，加载时做校验：字段齐全、id 唯一、kind 合法。
 个人想学的课外文章写在 $LOOPBACK_HOME/curriculum.local.yaml（格式相同，不进 git），
 加载时追加在公共课程后面，id 不能和公共课程重复（D23）。
-进度在 progress.json：每个条目的状态（todo / in_progress / done）、当前节、学完后的一句话总结，
-外加一条按日期记的学习日志。每天新开一个会话时，就靠这份文件续上（演进清单 #19）。
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, fields
-from datetime import date
 from difflib import SequenceMatcher
 from importlib import resources
 from pathlib import Path
-from typing import Any
 
 import yaml
 
-from loopback.store import read_json, write_json
 from loopback.tools import ToolError
 
 KINDS = {"doc", "blog", "research", "news", "paper", "report", "spec", "video", "repo"}
 REQUIRED = ("id", "title", "url", "kind", "level", "group")
 LOCAL_FILE = "curriculum.local.yaml"  # $LOOPBACK_HOME 下的个人课程（D23）
-PROGRESS_VERSION = 1
 
 
 def _norm(text: str) -> str:
@@ -137,64 +131,3 @@ class Curriculum:
                 scored.append((score, item))
         scored.sort(key=lambda x: -x[0])  # 稳定排序：同分时保持课程顺序
         return [item for _, item in scored[:k]]
-
-
-class Progress:
-    def __init__(self, home: Path) -> None:
-        self.path = home / "progress.json"
-        self.reload()
-
-    def reload(self) -> None:
-        """从磁盘重新读取进度：另一个前端（REPL 或 Claude Code）可能刚更新过它。"""
-        data = read_json(self.path, version=PROGRESS_VERSION) or {}
-        self.items: dict[str, dict[str, Any]] = data.get("items", {})
-        self.current: str | None = data.get("current")
-        self.log: list[dict[str, Any]] = data.get("log", [])
-
-    def state(self, item_id: str) -> dict[str, Any]:
-        """某个条目的进度；还没学过的返回 todo。"""
-        return self.items.get(item_id, {"status": "todo", "section": 0})
-
-    def update(
-        self,
-        item_id: str,
-        *,
-        section: int | None = None,
-        n_sections: int | None = None,
-        done: bool = False,
-        summary: str | None = None,
-        today: date | None = None,
-    ) -> dict:
-        """更新进度并原子写盘：首次学习记为开始；可设当前节；done=True 时必须带一句话总结。"""
-        day = (today or date.today()).isoformat()
-        st = self.items.setdefault(item_id, {"status": "todo", "section": 0, "started": day})
-        if st["status"] == "todo":
-            st["status"] = "in_progress"
-            self._log(day, item_id, "start")
-        if n_sections is not None:
-            st["n_sections"] = n_sections
-        if section is not None:
-            st["section"] = section
-        if done:
-            if not summary:
-                raise ToolError("标记完成时必须给出一句话总结 summary")
-            st.update(status="done", finished=day, summary=summary)
-            self._log(day, item_id, "done")
-        self.current = None if done else item_id
-        write_json(
-            self.path,
-            {"items": self.items, "current": self.current, "log": self.log},
-            version=PROGRESS_VERSION,
-        )
-        return st
-
-    def suggestions(self, curriculum: Curriculum, k: int = 2) -> list[Item]:
-        """先接着学正在学的，再按课程顺序往下排。"""
-        ordered = sorted(
-            curriculum.items, key=lambda i: self.state(i.id)["status"] != "in_progress"
-        )
-        return [i for i in ordered if self.state(i.id)["status"] != "done"][:k]
-
-    def _log(self, day: str, item_id: str, event: str) -> None:
-        """往学习日志追加一条记录（日期、条目、事件）。"""
-        self.log.append({"date": day, "item": item_id, "event": event})

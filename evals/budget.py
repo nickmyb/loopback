@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from loopback.pricing import estimate_usd
 
-# 估算花费用的“典型用量”（一次讲一节的试验 / 一次评审），实际花费以 API 返回的 usage 为准
+# 估算花费用的“典型用量”（一次讲一页的试验 / 一次评审），实际花费以 API 返回的 usage 为准
 TYPICAL_TRIAL = {
     "input_tokens": 3000,
     "cache_creation_input_tokens": 15000,

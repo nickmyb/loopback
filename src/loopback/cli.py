@@ -21,10 +21,11 @@ from dotenv import load_dotenv
 
 from loopback import __version__, agents, repl
 from loopback.config import ConfigError, Settings, setup_logging
-from loopback.curriculum import Curriculum, CurriculumError, Progress
+from loopback.curriculum import Curriculum, CurriculumError
 from loopback.learning import teacher_tools
 from loopback.library import Library
 from loopback.llm import AnthropicLLM, sanitize_proxy_env
+from loopback.progress import Progress
 from loopback.render import open_in_browser
 from loopback.session import Session
 from loopback.trace import build_trace, latest_session, load_events, render_text

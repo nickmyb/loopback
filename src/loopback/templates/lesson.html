@@ -29,15 +29,18 @@
                   padding: 16px 20px; margin: 14px 0; }
   /* 逐段讲解：宽屏左右并排（左原文、右讲解），窄屏上下排列 */
   section.explain { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  section.explain:has(.original pre) { grid-template-columns: 3fr 2fr; }  /* 讲代码时原文更宽 */
-  @media (max-width: 760px) {
-    section.explain, section.explain:has(.original pre) { grid-template-columns: 1fr; }
-  }
+  /* 原文是代码块或表格（wide 由代码判断）：上下排，原文占满整行（D30） */
+  section.explain.wide { grid-template-columns: 1fr; }
+  @media (max-width: 760px) { section.explain { grid-template-columns: 1fr; } }
   .mermaid-error { color: var(--muted); font-size: .85rem; text-align: left; }
   .original { background: var(--orig); border-radius: 8px; padding: 10px 14px; font-size: .92rem;
               overflow-x: auto; }
   .original img { max-width: 100%; }
-  .original pre { white-space: pre-wrap; overflow-wrap: anywhere; }  /* 长行自动换行，不用横向滚动 */
+  /* 代码、ASCII 图、表格靠对齐表达意思：不折行，太宽就横向滚动 */
+  .original pre { white-space: pre; }
+  .original table { display: block; overflow-x: auto; border-collapse: collapse; }
+  .original th, .original td { border: 1px solid var(--line); padding: 4px 8px; vertical-align: top; }
+  .overlap { color: var(--muted); font-size: .85rem; text-align: left; margin-top: 8px; }
   .pnum { color: var(--accent); font-weight: 700; font-size: .8rem; letter-spacing: .05em; }
   .note { border-left: 4px solid var(--accent); background: var(--accent-soft); }
   pre { background: var(--code); padding: 10px 12px; border-radius: 8px; overflow-x: auto;
@@ -74,14 +77,27 @@
     const dark = matchMedia("(prefers-color-scheme: dark)").matches;
     mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default", securityLevel: "strict" });
     // 先逐个检查语法：有错的图降级成“源码 + 提示”，不让一张坏图显示成报错图标
+    const sources = new Map();
     for (const el of document.querySelectorAll(".mermaid")) {
-      try { await mermaid.parse(el.textContent); }
+      try { await mermaid.parse(el.textContent); sources.set(el, el.textContent); }
       catch (e) {
         el.className = "mermaid-error";
         el.textContent = "这张图有语法错误，暂时显示源码：\n\n" + el.textContent;
       }
     }
     await mermaid.run({ querySelector: ".mermaid" });
+    // 画好之后检查节点框有没有互相压住；压住了就在图下提示，并附上源码（D30 的第三层兜底）
+    for (const [el, src] of sources) {
+      const boxes = [...el.querySelectorAll(".node, .mindmap-node")].map((n) => n.getBoundingClientRect());
+      const hit = boxes.some((a, i) => boxes.slice(i + 1).some((b) =>
+        a.left < b.right - 2 && b.left < a.right - 2 && a.top < b.bottom - 2 && b.top < a.bottom - 2));
+      if (!hit) continue;
+      const note = document.createElement("details");
+      note.className = "overlap";
+      note.innerHTML = "<summary>这张图有节点互相压住了，点开看源码</summary><pre></pre>";
+      note.querySelector("pre").textContent = src;
+      el.after(note);
+    }
   } catch (e) {
     console.warn("mermaid 加载失败（离线？），图以源码显示", e);
   }

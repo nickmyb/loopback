@@ -21,9 +21,10 @@ from mcp.server.stdio import stdio_server
 
 from loopback import __version__
 from loopback.config import Settings
-from loopback.curriculum import Curriculum, Progress
+from loopback.curriculum import Curriculum
 from loopback.learning import next_step_tool, teacher_tools
 from loopback.library import Library
+from loopback.progress import Progress
 from loopback.render import open_in_browser
 from loopback.tools import ToolSet
 

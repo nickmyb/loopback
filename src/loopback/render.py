@@ -44,7 +44,7 @@ class LessonRenderer:
         section: int | None = None,
     ) -> Path:
         """生成一页课件并更新目录页，返回文件路径。"""
-        # 1) 校验页面参数，找到这一节（原文从这里取）
+        # 1) 校验页面参数，找到这一页（原文从这里取）
         material = self.library.get(item_id)
         if page not in ("overview", "section", "summary"):
             raise ToolError("page 必须是 overview、section 或 summary")
@@ -61,7 +61,7 @@ class LessonRenderer:
         folder = self.root / item_id
         folder.mkdir(parents=True, exist_ok=True)
         name = page_file(page, section)
-        where = f" · 第 {section}/{len(material.sections)} 节 · {sec.title}" if sec else ""
+        where = f" · 第 {section}/{len(material.sections)} 页 · {sec.title}" if sec else ""
         nav = _nav(name, len(material.sections))
         path = folder / name
         path.write_text(

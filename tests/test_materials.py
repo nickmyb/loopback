@@ -82,3 +82,30 @@ def test_docs_site_banner_is_stripped_from_markdown_sources() -> None:
     ex = extract(md, "https://code.claude.com/docs/en/x.md")
     assert ex.markdown.startswith("# Real Title") and "Summary quote stays." in ex.markdown
     assert ex.title == "Real Title"
+
+
+def words(n: int, w: str = "word") -> str:
+    """一段恰好 n 个词的文字，用来精确控制切页。"""
+    return " ".join([w] * n)
+
+
+def test_thematic_breaks_are_not_content_and_never_form_a_page() -> None:
+    md = f"# Doc\n\n{words(20)}\n\n---\n\n## A\n\n***\n\n## B\n\n{words(20)}\n\n___\n"
+    secs = split_sections(md, BASE)
+    assert [s.title for s in secs] == ["Doc", "B"]  # A 下面只有分隔线，不成页
+    assert all(p.strip() not in ("---", "***", "___") for s in secs for p in s.paras)
+
+
+def test_a_short_lead_in_stays_with_the_table_it_introduces() -> None:
+    table = "| a | b |\n|---|---|\n" + "\n".join(f"| {words(10)} | x |" for _ in range(40))
+    md = f"# Doc\n\n{words(300)}\n\nThe table below lists each step:\n\n{table}\n"
+    first, second = split_sections(md, BASE)
+    assert first.paras == [words(300)]
+    assert second.paras[0] == "The table below lists each step:" and second.paras[1] == table
+
+
+def test_a_short_tail_joins_the_previous_page() -> None:
+    # 340 + 30 超出预算：旧规则会让 30 词的尾巴单独成第 3 页
+    md = f"# Doc\n\n{words(340)}\n\n{words(340, 'more')}\n\n{words(30, 'tail')}\n"
+    secs = split_sections(md, BASE)
+    assert len(secs) == 2 and secs[-1].paras[-1] == words(30, "tail")  # 尾巴没有单独成页

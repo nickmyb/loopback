@@ -1,53 +1,23 @@
-"""教师的学习类工具：查课程与进度、取材料大纲、读一节原文、更新进度。
+"""教师的学习类工具：查课程与进度、取材料大纲、读一页原文、更新进度。
 
 这些工具是 ACI（Agent-Computer Interface）：按学习这件事本身来设计，而不是给一个通用的 bash。
-工具返回的都是给模型看的简短文本，原文按需一节一节地取（just-in-time）。
+工具返回的都是给模型看的简短文本，原文按需一页一页地取（just-in-time）。
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date
 from pathlib import Path
 
-from loopback.curriculum import Curriculum, Progress
+from loopback.curriculum import Curriculum
 from loopback.feedback import feedback_tool
-from loopback.library import Library, outline, render_section
+from loopback.library import Library, same_page
+from loopback.progress import Progress, next_message, status_text
+from loopback.reading import outline, render_section
 from loopback.render import LessonRenderer, lesson_tool
 from loopback.tools import Tool, ToolError
 
 _ITEM = {"type": "string", "description": "Curriculum item id, e.g. 'ae-04'."}
-
-
-def status_text(curriculum: Curriculum, progress: Progress, today: date | None = None) -> str:
-    """生成进度摘要：今天的日期、正在学的条目和节、接下来的建议、完成数。"""
-    lines = [f"今天：{(today or date.today()).isoformat()}"]
-    if progress.current:
-        st, item = progress.state(progress.current), curriculum.by_id.get(progress.current)
-        if item:
-            lines.append(
-                f"正在学：{item.label()} 第 {st['section']}/{st.get('n_sections', '?')} 节"
-            )
-    lines.append("建议接下来学（按课程顺序）：")
-    lines += [f"- {i.label()}" for i in progress.suggestions(curriculum, k=3)]
-    done = sum(1 for i in curriculum.items if progress.state(i.id)["status"] == "done")
-    lines.append(f"已完成 {done} / {len(curriculum.items)}")
-    return "\n".join(lines)
-
-
-def next_message(curriculum: Curriculum, progress: Progress) -> str:
-    """根据进度算出下一步要做什么，生成一条明确的指令。"""
-    if progress.current is None:  # 没有正在学的：开始课程顺序里的下一篇
-        upcoming = progress.suggestions(curriculum, k=1)
-        if not upcoming:
-            return "课程已经全部学完了，请帮我回顾一下学过的内容。"
-        item = upcoming[0]
-        return f"开始学习 [{item.id}] {item.title}：先调用 fetch_material，给我整体概览。"
-    item, state = curriculum.get(progress.current), progress.state(progress.current)
-    total, nxt = state.get("n_sections"), state["section"] + 1
-    if total and nxt > total:  # 全部讲完：该做总结、标记完成了
-        return f"[{item.id}] 的 {total} 节都学完了：请做总结，并调用 update_progress 标记完成。"
-    return f"继续学习 [{item.id}] {item.title} 第 {nxt} 节：调用 read_section 讲解，讲完记录进度。"
 
 
 def learning_tools(curriculum: Curriculum, progress: Progress, library: Library) -> list[Tool]:
@@ -56,13 +26,26 @@ def learning_tools(curriculum: Curriculum, progress: Progress, library: Library)
     def update_progress(
         item_id: str, section: int | None = None, done: bool = False, summary: str | None = None
     ) -> str:
-        """校验节号范围后更新进度；总节数取自已经切好的材料。"""
+        """校验页号范围后更新进度；总页数取自材料快照。"""
         curriculum.get(item_id)
         n = len(library.get(item_id).sections)
         if section is not None and not 0 <= section <= n:
             raise ToolError(f"section 必须在 0..{n}")
         st = progress.update(item_id, section=section, n_sections=n, done=done, summary=summary)
-        return f"{item_id}: {st['status']}, 第 {st['section']}/{n} 节"
+        return f"{item_id}: {st['status']}, 第 {st['section']}/{n} 页"
+
+    def fetch_material(item_id: str, refresh: bool = False) -> str:
+        """取大纲。开始学或重学时按最新原文重切；学到一半时保留快照，除非学习者要换新版本（D28）。"""
+        state = progress.state(item_id)
+        studying = state["status"] == "in_progress"
+        if studying and not refresh:
+            return outline(library.get(item_id))
+        old = library.get(item_id) if studying else None
+        material = library.refresh(item_id)
+        if old is not None:  # 学到一半换了快照：进度对到新快照里同标题的那一页
+            page = same_page(old, material, state["section"])
+            progress.update(item_id, section=page, n_sections=len(material.sections))
+        return outline(material)
 
     def find_material(query: str) -> str:
         """按标题、关键词或 id 搜课程，返回带 id 和进度的候选列表。"""
@@ -88,10 +71,16 @@ def learning_tools(curriculum: Curriculum, progress: Progress, library: Library)
         ),
         Tool(
             "fetch_material",
-            "Fetch (or load from cache) a curriculum item and return its outline: title, date, "
-            "and numbered sections with word counts. Does not return the full text.",
-            {"type": "object", "properties": {"item_id": _ITEM}, "required": ["item_id"]},
-            lambda item_id: outline(library.get(item_id)),
+            "Return the outline of a curriculum item: title, date and numbered sections with "
+            "word counts (not the full text). Starting or restarting an item re-splits it from "
+            "the latest source; mid-study the snapshot is kept so section numbers stay stable. "
+            "Pass refresh=true only when the learner wants the newer version the outline mentions.",
+            {
+                "type": "object",
+                "properties": {"item_id": _ITEM, "refresh": {"type": "boolean"}},
+                "required": ["item_id"],
+            },
+            fetch_material,
         ),
         Tool(
             "read_section",

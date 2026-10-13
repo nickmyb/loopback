@@ -6,7 +6,7 @@
 - **旁支问题**：学习中冒出的新问题交给“助教”回答，不打断主线，也不占用主 agent 的上下文。
 - **效果可度量**：自带 evals，“讲得好不好”用数据说话，不靠感觉。
 
-> 已经能做的：逐节学习，并生成 HTML 课件（原文对照、mermaid 图、分步动画、自测题）；项目自学；轨迹查看；evals。有两种用法：终端 REPL，以及 Claude Code 里的 `/learn`（走订阅）。
+> 已经能做的：逐页学习，并生成 HTML 课件（原文对照、mermaid 图、分步动画、自测题）；项目自学；轨迹查看；evals。有两种用法：终端 REPL，以及 Claude Code 里的 `/learn`（走订阅）。
 >
 > 当前进度见 [docs/plan.md](docs/plan.md) 的「执行顺序」。其他文档：
 > - 需求：[docs/requirements.md](docs/requirements.md)
@@ -31,7 +31,7 @@ uv run loopback trace        # 查看最近一次会话的轨迹
 
 ```text
 /learn            # 按进度开始或继续（等同于 next）
-/learn next       # 下一节
+/learn next       # 下一页
 /learn loop.py    # 学指定的文章或文件
 /btw 什么是 MCP？  # 旁支问题用 side chat 问，不打断主线
 ```

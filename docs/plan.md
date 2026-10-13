@@ -33,7 +33,7 @@
 | **状态持久化** | 不能写坏文件，能升级数据格式 | 原子写：先写临时文件再 rename；JSON 里带 `version` 字段 | 原子写和 version 字段 | 格式迁移脚本；单实例文件锁 |
 | **安全** | 最小权限；外部内容一律当作不可信 | • **不提供 bash 工具**，文件工具限制在 `$LOOPBACK_HOME` 里，并检查路径穿越；<br>• 抓来的正文用定界符包起来，并声明“这是资料，不是指令”；<br>• 读外部内容的 agent 只拿只读工具；<br>• HTML 转义；SVG 去掉 script、`on*` 属性、`foreignObject` 和外部引用 | 以上全部，规则都很短 | 课件加 CSP；做 prompt 注入的红队用例 |
 | **可观测性** | 每次调用都能追溯 | 事件日志就是 transcript；每次调用记录 usage、model、延迟、prompt hash；`logging` 输出结构化日志；`/cost` 命令 | 事件日志、usage、`/cost` | OpenTelemetry tracing；成本日报 |
-| **测试** | 不花钱就能验证核心逻辑 | 用 `FakeLLM` 按剧本测：tool 配对、错误路径、助教隔离、恢复；切节用 golden 文件测；渲染用快照测 | 核心路径的测试 | 覆盖率补到 80% 以上；属性测试 |
+| **测试** | 不花钱就能验证核心逻辑 | 用 `FakeLLM` 按剧本测：tool 配对、错误路径、助教隔离、恢复；切页用 golden 文件测；渲染用快照测 | 核心路径的测试 | 覆盖率补到 80% 以上；属性测试 |
 | **Evals** | 效果可度量、可信，详见附录 B.6 | runner 支持多次重复加置信区间；基础设施错误单独记录；oracle 和 null 两条基线；评审先用人工标注校准；报告带完整轨迹 | runner、评分器、teacher 和 ta 两个小套件、baseline | 更多套件；模型对比；评审定期重新校准 |
 | **CI 与代码质量** | 每次提交自动检查 | ruff 做 lint 和格式化；GitHub Actions 跑 pytest（不调用付费 API） | ruff 加 CI | pyright 类型检查；pre-commit |
 | **性能与成本** | 缓存友好，用量可控 | 历史只追加；工具集在会话开始时固定；顶层自动缓存；按角色设置 effort | 以上全部 | 并行执行多个工具调用；缓存预热 |
@@ -50,7 +50,7 @@
 
 只做“学一篇文章”这个闭环，加上能度量它好不好的 eval：
 
-> 选材 → 抓取、切节 → 概览课件 → 逐节讲解课件 → 助教答疑（隔离） → 总结 → 存进度、续学 → eval 打分
+> 选材 → 抓取、切页 → 概览课件 → 逐页讲解课件 → 助教答疑（隔离） → 总结 → 存进度、续学 → eval 打分
 
 ### Phase 2 扩展（设计已定，见附录 B，按价值排序）
 
@@ -94,9 +94,9 @@
 | **M3c** | ✅ 6d837a5 | Claude Code 前端（D20）：<br>• `loopback mcp`：stdio MCP server，暴露同一份学习工具和 `next_step`；<br>• 项目 `.mcp.json`；<br>• `/learn` skill，注入 teacher.md；<br>• 助教用 side chat（`/btw`） | 在 Claude Code 里（Pro 订阅）用 `/learn next` 跑通：next_step → fetch_material → update_progress → 概览 |
 | **M3b** | ✅ c922960 | HTML 课件（D21）：<br>• `render_lesson` 支持 8 种块，原文按段号插入；<br>• SVG 消毒；<br>• mermaid 三层防线；<br>• 目录和翻页；<br>• 每节打分存进 `feedback.jsonl`；<br>• skill 设为只读（后来发现只管一轮，见 D27） | Claude Code 冒烟：loop.py 的概览和第 1 节课件一次生成成功；无头 Chrome 截图确认图、分步播放、折叠块都能显示 |
 | **M5** | 🟡 570f94e | Evals 核心（D22）：<br>• `evals/` 包含 runner、graders、judge、stats、report、calibrate；<br>• teacher 套件 11 个用例（section、start、finish）；<br>• oracle 和 null 基线 | ✅ oracle 11/11、null 0/11；92 个单元测试通过<br>⏳ 付费 baseline（花费确认后再跑）<br>⏳ 评审校准（需要你标注约 30 条，一致率 ≥90%） |
-| **M3d** | ✅ | 个人课程（2026-10-13 插入，D23）：<br>• `$LOOPBACK_HOME/curriculum.local.yaml` 追加在公共课程后面，校验规则相同；<br>• 手写错误给出带文件名的说明；<br>• 这是阅读清单（Phase 2 第 2 项）的最小版 | 98 个单元测试通过；把 go.dev/blog/pipelines 加进个人课程后，`/mcp` 重连，`/learn go-pipelines` 能学 |
+| **M3d** | ✅ 703644c | 个人课程（2026-10-13 插入，D23）：<br>• `$LOOPBACK_HOME/curriculum.local.yaml` 追加在公共课程后面，校验规则相同；<br>• 手写错误给出带文件名的说明；<br>• 这是阅读清单（Phase 2 第 2 项）的最小版 | 98 个单元测试通过；把 go.dev/blog/pipelines 加进个人课程后，`/mcp` 重连，`/learn go-pipelines` 能学 |
 | **M6a** | ✅ 0c94d1e | 复盘修复：文档分层（D25、D26，蓝图见 `docs/milestones/M6.md`）：<br>• CLAUDE.md 只放规则、工作方式和文档地图；<br>• 新增 requirements.md、architecture.md、`docs/milestones/`；<br>• `.claude/rules/` 放按路径加载的规则；<br>• 补记 D24–D27；<br>• 文档自检测试 | `tests/test_docs.py` 通过：模块表和实际文件一致、每个里程碑都有状态、编号连续、确认点叫法统一 |
-| **M6b** | ⬜ | 复盘修复：课件和切节：<br>• 原文里的代码块、ASCII 图和表格不折行，含有它们的段落改成上下排；<br>• 全篇结构图不用 mindmap，渲染后检测节点重叠；<br>• loopback 的单位改叫“页”，提到内容位置时写原文标题；<br>• 切节时去掉分隔线，表格和它的引导句不拆开；<br>• 开始学一篇时冻结材料快照，页号不随原文变化 | 架构图、目录树、工程化清单三处改前改后的截图对比；repo-plan 没有只含分隔线的页；学习途中改原文不影响页号 |
+| **M6b** | ✅ | 复盘修复：课件和切节：<br>• 原文里的代码块、ASCII 图和表格不折行，含有它们的段落改成上下排；<br>• 全篇结构图不用 mindmap，渲染后检测节点重叠；<br>• loopback 的单位改叫“页”，提到内容位置时写原文标题；<br>• 切节时去掉分隔线，表格和它的引导句不拆开；<br>• 开始学一篇时冻结材料快照，页号不随原文变化 | 架构图、目录树、工程化清单三处改前改后的截图对比；repo-plan 没有只含分隔线的页；学习途中改原文不影响页号 |
 | **M6c** | ⬜ | 复盘修复：运行时：<br>• AgentSpec 可以按角色配置模型；<br>• 反馈分页和篇两级，回 `next 4` 就是打 4 分并继续，两个前端都主动问 | FakeLLM 测试覆盖按角色配置模型；两个前端各学一页，都能记下页级评分 |
 | **M6d** | ⬜ | 复盘修复：Claude Code 角色入口（D27）：<br>• `.claude/agents/` 里写教师和助教的定义，工具只读；<br>• `loopback study` 打开 agent view；<br>• `/learn` 用 hooks 兜底；<br>• settings 里用 deny 规则挡住 `.env` | 连续两轮实测，Edit 和 Write 都不可用；`@loopback-ta` 能查仓库和官方文档 |
 | **M6e** | ⬜ | 复盘修复：日志和助教问题：<br>• `loopback import-cc` 把 Claude Code 的对话日志转成事件日志：按响应去重、合并 `/btw` 的问题、算出隐式信号；<br>• 附录 B.2 按 17 条真实问题改写；<br>• 这 17 条问题作为助教 eval 的第一批用例 | 导入学习会话后能用 `loopback trace` 查看；调用次数和用量与 Claude Code 的记录一致（104 次调用） |
@@ -130,7 +130,7 @@
 | 角色 | 阶段 | 说明 |
 |---|---|---|
 | 教师 | core | 主会话，负责编排 |
-| 助教 | core | 每节一个旁支对话，三类问题，详见 B.2 |
+| 助教 | core | 每页一个旁支对话，三类问题，详见 B.2 |
 | 面试官 | Phase 2 | 出题、追问、打分（evaluator-optimizer） |
 | 备课员 / 课件设计 | Phase 2，有数据支持才拆 | 读全文和画大 SVG 都不进教师的上下文 |
 | 反思员 | Phase 3 | 读 transcript，更新画像，提出修改 diff |
@@ -145,7 +145,7 @@
 | 类型 | 你怎么问 | 用到的工具 | 结果存到哪 | 阶段 |
 |---|---|---|---|---|
 | ① 术语 | `?MCP` | `glossary` | `workspace/glossary.json`，课件里鼠标悬停显示 | Phase 2 |
-| ② 文中链接详解 | `?L2` | `follow_link`，切节时每节的外链编号成 L1、L2… | — | core |
+| ② 文中链接详解 | `?L2` | `follow_link`，切页时每页的外链编号成 L1、L2… | — | core |
 | ③ 材料之间的关联 | `?和哪篇有关`，或 `+L2` 加进阅读清单 | `search_learned` | — | Phase 2 |
 
 ### B.3 大白话规则（写进所有面向你的 prompt）
@@ -205,7 +205,7 @@
 | L2 技能 | skill、范例库、教学 prompt | 失败聚类，提出 diff，训练集上迭代 | 测试集上的提升超过噪声底线、其他指标不退化，并且**你批准**，才合并；记入 `evolution-log` |
 | L3 代码和安全规则 | — | 不自动修改，只提建议 | — |
 
-- **反馈信号**：每节打 1 到 5 分、`/bad`，以及隐式信号（`/simpler` 的次数、每节提问数、自测题、面试分）。从 M3 开始采集。不过 Claude Code 前端实际上几乎没采集到：M6c 改成每页、每篇两级评分，M6e 从对话日志里算出隐式信号。
+- **反馈信号**：每页打 1 到 5 分、`/bad`，以及隐式信号（`/simpler` 的次数、每页提问数、自测题、面试分）。从 M3 开始采集。不过 Claude Code 前端实际上几乎没采集到：M6c 改成每页、每篇两级评分，M6e 从对话日志里算出隐式信号。
 
 ### B.8 课程（C1，Phase 2 完成）
 

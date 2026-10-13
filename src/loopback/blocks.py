@@ -9,14 +9,17 @@
 from __future__ import annotations
 
 import html
+import re
 from typing import Any
 
 from markdown_it import MarkdownIt
 
+from loopback.materials import is_table_or_code
 from loopback.svg import sanitize_svg
 from loopback.tools import ToolError
 
 _MD = MarkdownIt("commonmark", {"html": False}).enable("table")
+_BR = re.compile(r"&lt;br\s*/?&gt;")  # 被转义掉的 <br>：表格单元格里常用它换行
 # fmt: off
 MERMAID_KINDS = (
     "graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram",
@@ -38,12 +41,12 @@ REQUIRED = {
 
 
 def md(text: str) -> str:
-    """markdown -> 安全的 HTML 片段。"""
-    return _MD.render(text or "")
+    """markdown -> 安全的 HTML 片段。原始 HTML 一律转义，只放行 <br>（D30）。"""
+    return _BR.sub("<br>", _MD.render(text or ""))
 
 
 def block_html(n: int, b: dict[str, Any], section: Any) -> str:
-    """校验第 n 个块并转成 HTML。section 是当前节（概览、总结页为 None）。"""
+    """校验第 n 个块并转成 HTML。section 是当前这一页（概览、总结页为 None）。"""
     kind = b.get("type")
     if kind not in REQUIRED:
         raise ToolError(f"第 {n} 个块的 type={kind!r} 不支持，可选：{', '.join(REQUIRED)}")
@@ -56,10 +59,11 @@ def block_html(n: int, b: dict[str, Any], section: Any) -> str:
         p = b["para"]
         if not isinstance(p, int) or not 1 <= p <= len(section.paras):
             raise ToolError(f"第 {n} 个块的 para 必须在 1..{len(section.paras)}")
-        original = md(section.paras[p - 1])
+        para = section.paras[p - 1]
+        wide = " wide" if is_table_or_code(para) else ""  # 代码块和表格上下排，原文占满整行
         return (
-            f'<section class="block explain"><div class="original"><div class="pnum">P{p}</div>'
-            f"{original}</div><div>{md(b['text'])}</div></section>"
+            f'<section class="block explain{wide}"><div class="original">'
+            f'<div class="pnum">P{p}</div>{md(para)}</div><div>{md(b["text"])}</div></section>'
         )
     if kind in ("text", "note"):
         return f'<section class="block {kind}">{md(b["text"])}</section>'
@@ -96,14 +100,12 @@ def _figure(n: int, b: dict[str, Any]) -> str:
 
 
 def _lint_mermaid(n: int, code: str) -> None:
-    """拦下已知的、浏览器里才会报错的写法，让模型当场改（Python 里跑不了 mermaid 本身）。"""
-    if code.startswith("mindmap"):
-        quoted = [line.strip() for line in code.splitlines()[1:] if line.strip().startswith('"')]
-        if quoted:
-            raise ToolError(
-                f"第 {n} 个图是 mindmap，节点不能用双引号包裹（例如 {quoted[0]}）："
-                "直接写文字，不要用括号和冒号，层级靠缩进"
-            )
+    """拦下已知会出问题的写法，让模型当场改（Python 里跑不了 mermaid 本身）。"""
+    if code.startswith("mindmap"):  # 力导向布局，节点经常互相压住（D30）
+        raise ToolError(
+            f"第 {n} 个图是 mindmap：它的布局会让节点互相压住，不能用。"
+            "全篇结构请改用 flowchart LR：每个一级标题一个节点，下面挂 1 到 3 个要点"
+        )
 
 
 def _steps(n: int, frames: Any) -> str:

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from test_library import lib, md_fetch
 
+from loopback.blocks import md
 from loopback.feedback import feedback_tool, record_feedback
 from loopback.render import LessonRenderer
 from loopback.svg import sanitize_svg
@@ -37,7 +38,7 @@ def test_section_page_puts_original_beside_explanation(tmp_path: Path) -> None:
     assert "<strong>一句话</strong>" in page and "&lt;script&gt;" in page  # 模型文本转义
     assert "<script>x</script>" not in page
     assert '<pre class="mermaid">flowchart LR' in page and "工具 &lt;b&gt;" in page
-    assert "第 2/5 节" in page and 'href="s01.html"' in page and 'href="s03.html"' in page
+    assert "第 2/5 页" in page and 'href="s01.html"' in page and 'href="s03.html"' in page
 
 
 @pytest.mark.parametrize(
@@ -86,7 +87,7 @@ def test_steps_player_and_index_in_reading_order(tmp_path: Path) -> None:
     r.render(
         "s1",
         "section",
-        "第 2 节",
+        "工具调用的过程",
         [
             {
                 "type": "steps",
@@ -117,9 +118,24 @@ def test_feedback_is_appended_and_validated(tmp_path: Path) -> None:
     ]
 
 
-def test_quoted_mindmap_nodes_are_rejected_before_rendering(tmp_path: Path) -> None:
-    bad = 'mindmap\n  root(("loop.py"))\n    "1 模块说明"'
-    with pytest.raises(ToolError, match="mindmap，节点不能用双引号"):
-        renderer(tmp_path).render("s1", "overview", "概览", [{"type": "mermaid", "code": bad}])
-    good = "mindmap\n  root((loop.py))\n    1 模块说明\n    2 TurnResult"
-    renderer(tmp_path).render("s1", "overview", "概览", [{"type": "mermaid", "code": good}])
+def test_mindmap_is_rejected_and_flowchart_is_suggested(tmp_path: Path) -> None:
+    mindmap = "mindmap\n  root((loop.py))\n    1 模块说明\n    2 TurnResult"
+    with pytest.raises(ToolError, match=r"mindmap.*节点互相压住.*flowchart LR"):
+        renderer(tmp_path).render("s1", "overview", "概览", [{"type": "mermaid", "code": mindmap}])
+    flow = 'flowchart LR\n  A["loop.py"] --> B["模块说明"]'
+    renderer(tmp_path).render("s1", "overview", "概览", [{"type": "mermaid", "code": flow}])
+
+
+def test_code_and_tables_stack_full_width_but_prose_stays_side_by_side(tmp_path: Path) -> None:
+    blocks = [{"type": "explain", "para": p, "text": "讲解"} for p in (1, 3)]  # P3 是代码块
+    page = renderer(tmp_path).render("s1", "section", "增强型 LLM", blocks, section=2).read_text()
+    assert page.count('class="block explain wide"') == 1  # 只有代码块那段上下排
+    assert page.count('class="block explain"') == 1
+
+
+def test_br_in_table_cells_becomes_a_line_break_but_other_html_is_escaped() -> None:
+    html_out = md(
+        "| 怎么做 |\n|---|\n| 分类处理：<br>• API 错误<br/>• 工具异常 <script>x</script> |"
+    )
+    assert "分类处理：<br>• API 错误<br>• 工具异常" in html_out
+    assert "<script>" not in html_out and "&lt;script&gt;" in html_out

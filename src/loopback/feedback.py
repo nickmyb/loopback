@@ -1,7 +1,7 @@
-"""学习者对每一节的打分（1 到 5）和一句话意见：以后的 evals 和自我进化的原始数据（D10）。
+"""学习者对每一页的打分（1 到 5）和一句话意见：以后的 evals 和自我进化的原始数据（D10）。
 
 追加写入 $LOOPBACK_HOME/feedback.jsonl，一行一条，只追加。两个前端都能写：
-REPL 在讲完一节后直接问；Claude Code 里由教师调用 record_feedback 工具。
+REPL 在讲完一页后直接问；Claude Code 里由教师调用 record_feedback 工具。
 """
 
 from __future__ import annotations
@@ -34,11 +34,11 @@ def record_feedback(
 
 
 def feedback_tool(home: Path) -> Tool:
-    """record_feedback：学习者说“这节 4 分”之类时，由教师记录下来。"""
+    """record_feedback：学习者说“这页 4 分”之类时，由教师记录下来。"""
 
     def record(item_id: str, section: int, score: int, note: str = "") -> str:
         record_feedback(home, item_id, section, score, note, source="agent")
-        return f"已记录：{item_id} 第 {section} 节 {score} 分"
+        return f"已记录：{item_id} 第 {section} 页 {score} 分"
 
     return Tool(
         "record_feedback",

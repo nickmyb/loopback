@@ -16,7 +16,7 @@ class Case:
     id: str
     item: str  # 课程条目 id
     kind: str  # section | start | finish
-    section: int | None = None  # kind=section：要讲的节号
+    section: int | None = None  # kind=section：要讲的页号
     say: str | None = None  # kind=start：学习者说的话
     tags: tuple[str, ...] = field(default_factory=tuple)
 

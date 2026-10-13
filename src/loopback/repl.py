@@ -1,7 +1,7 @@
 """REPL：学习者在终端里和教师对话。
 
 - 启动时先在本地打印学习进度（不调用模型、不花钱），然后等你输入。
-- `next`：由 harness 根据 progress.json 算出“下一步该讲哪一节”，再把明确的指令交给教师。
+- `next`：由 harness 根据 progress.json 算出“下一步该讲哪一页”，再把明确的指令交给教师。
   确定性的事交给代码（D9），模型不需要自己记位置。
 - `/trace`：随时查看当前会话的轨迹（审计和排查用）；`/cost`：用量和花费。
 """
@@ -17,19 +17,19 @@ import anthropic
 
 from loopback.agents import AgentSpec
 from loopback.config import Settings
-from loopback.curriculum import Curriculum, Progress
+from loopback.curriculum import Curriculum
 from loopback.feedback import record_feedback
-from loopback.learning import next_message, status_text
 from loopback.llm import LLM
 from loopback.loop import run_turn
 from loopback.pricing import cache_hit_rate, estimate_usd
+from loopback.progress import Progress, next_message, status_text
 from loopback.session import Session
 from loopback.trace import build_trace, render_text
 
 log = logging.getLogger(__name__)
 
 HELP = """命令：
-  next, n      开始或继续学习：自动定位到下一节
+  next, n      开始或继续学习：自动定位到下一页
   /trace [N]   查看本次会话的轨迹（最近 N 轮，默认全部）：每次模型调用、工具调用、token、耗时
   /cost        本次会话的 token 用量、缓存命中率、估算花费
   /help        显示这段帮助
@@ -83,18 +83,18 @@ def run(app: App) -> None:
 
 
 def _position(progress: Progress) -> tuple[str | None, int]:
-    """当前在学哪个条目、学到第几节。"""
+    """当前在学哪个条目、学到第几页。"""
     current = progress.current
     return current, progress.state(current)["section"] if current else 0
 
 
 def ask_rating(app: App, before: tuple[str | None, int]) -> None:
-    """这一轮里进度往前走了一节，就请学习者打个分（回车跳过）；分数写进 feedback.jsonl。"""
+    """这一轮里进度往前走了一页，就请学习者打个分（回车跳过）；分数写进 feedback.jsonl。"""
     item, section = _position(app.progress)
     if item is None or item != before[0] or section <= before[1]:
         return
     try:
-        answer = input(f"这一节（{item} 第 {section} 节）打几分？1-5，可加一句意见，回车跳过 > ")
+        answer = input(f"这一页（{item} 第 {section} 页）打几分？1-5，可加一句意见，回车跳过 > ")
     except EOFError, KeyboardInterrupt:
         print()
         return

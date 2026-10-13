@@ -9,8 +9,9 @@ import anyio
 from mcp import Client
 
 from loopback.config import Settings
-from loopback.curriculum import LOCAL_FILE, Progress
+from loopback.curriculum import LOCAL_FILE
 from loopback.mcp_server import build_server
+from loopback.progress import Progress
 
 
 def call(home: Path, steps):
@@ -57,7 +58,7 @@ def test_project_material_round_trip_over_mcp(tmp_path: Path) -> None:
     assert "[repo-loop]" in text[0]
     assert "模块说明与导入" in text[1]
     assert text[2].startswith('<material item="repo-loop" section="1/')
-    assert "第 2 节" in text[4]
+    assert "第 2 页" in text[4]
     assert Progress(tmp_path).state("repo-loop")["section"] == 1  # 进度真的写盘了
 
 
@@ -72,7 +73,7 @@ def test_progress_written_by_another_front_end_is_picked_up(tmp_path: Path) -> N
         return await client.call_tool("next_step", {})
 
     [nxt] = call(tmp_path, [other_front_end_writes])
-    assert "[repo-plan]" in nxt.content[0].text and "第 1 节" in nxt.content[0].text
+    assert "[repo-plan]" in nxt.content[0].text and "第 1 页" in nxt.content[0].text
 
 
 def test_local_curriculum_items_are_visible_over_mcp(tmp_path: Path) -> None:

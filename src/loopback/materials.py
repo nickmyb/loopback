@@ -1,10 +1,12 @@
-"""学习材料：抓取 -> markdown -> 切节 -> 缓存到 library/<id>/；按节读取（just-in-time 上下文）。
+"""切页：把 markdown 正文切成一页一页（代码里叫 section，中文叫“页”，D29）。
 
-切节是确定性的代码，不交给模型（docs/decisions.md D9）：
-- 每个标题开一节，标题带上层级路径“A › B”；没有正文的父标题不单独成节。
-- 超过 MAX_SECTION_WORDS 的节，按段落边界拆成“（1/2）（2/2）”。
-- 代码块不拆开；每节的外链编号 L1、L2…，配图编号 I1、I2…。
-教师只拿到大纲；正文一次读一节，并用定界符标成“不可信资料”（D8）。
+切页是确定性的代码，不交给模型（docs/decisions.md D9）：
+- 每个标题开一页，标题带上层级路径“A › B”；没有正文的父标题不单独成页。
+- 一个标题下超过 MAX_SECTION_WORDS 的内容，按段落边界拆成“（1/2）（2/2）”。
+- 表格和代码块不拆开；它前面的短引导段跟着它，不和它分在两页。
+- 分隔线（---）不算段落；拆出来太短的尾巴并进前一页。
+- 每页的外链编号 L1、L2…，配图编号 I1、I2…。
+规则一改，SPLIT_VERSION 就加一，快照里会记下用的是哪一版（D28）。
 """
 
 from __future__ import annotations
@@ -14,7 +16,11 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 from urllib.parse import urljoin
 
+SPLIT_VERSION = 2  # 1：最初的规则；2：去掉分隔线、引导段跟着表格和代码块、短尾巴合并
 MAX_SECTION_WORDS = 350
+LEAD_IN_WORDS = 80  # 不超过这么多词的段落，紧挨在表格或代码块前面时算引导段
+MIN_TAIL_WORDS = 80  # 拆出来的最后一页不到这么多词，就并进前一页
+_BREAK = re.compile(r"^ {0,3}([-*_])(?: *\1){2,} *$")  # 分隔线：--- *** ___
 _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 _LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 _IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)")
@@ -37,11 +43,13 @@ def count_words(text: str) -> int:
 
 
 def split_sections(md: str, base_url: str, doc_title: str | None = None) -> list[Section]:
-    """把 markdown 正文切成节：按标题分节、标题带层级路径、超长的节按段落再拆。"""
+    """把 markdown 正文切成页：每个标题开一页、标题带层级路径、超长的按段落再拆。"""
     raw: list[tuple[str, list[str]]] = []
     stack: list[tuple[int, str]] = []  # 当前所处的标题层级，例如 [(2, "A"), (3, "B")]
     title, paras = doc_title or "导言", []
     for block in _blocks(md):
+        if _BREAK.match(block):  # 分隔线只是排版，不是内容
+            continue
         head, *rest = block.split("\n")
         m = _HEADING.match(head)  # 代码块的首行是 ```，不会被当成标题
         if not m:
@@ -59,7 +67,7 @@ def split_sections(md: str, base_url: str, doc_title: str | None = None) -> list
             stack.append((level, heading))
             title = " › ".join(h for _, h in stack)
         body = "\n".join(rest).strip()
-        if body:
+        if body and not _BREAK.match(body):
             paras.append(body)
     if paras:
         raw.append((title, paras))
@@ -98,21 +106,37 @@ def _clean_heading(text: str) -> str:
 
 
 def _chunk(paras: list[str]) -> list[list[str]]:
-    """按词数预算把一节的段落分组，每组不超过 MAX_SECTION_WORDS（单段超长时独占一组）。"""
+    """按词数预算把一个标题下的段落分成几页，每页不超过 MAX_SECTION_WORDS（单段超长时独占一页）。"""
     chunks: list[list[str]] = [[]]
     words = 0
     for p in paras:
         n = count_words(p)
         if chunks[-1] and words + n > MAX_SECTION_WORDS:
-            chunks.append([])
-            words = 0
+            # 放不下要换页。表格和代码块前面的短引导段跟着它走，不留在上一页
+            short_lead = count_words(chunks[-1][-1]) <= LEAD_IN_WORDS
+            carry = [chunks[-1].pop()] if is_table_or_code(p) and short_lead else []
+            if chunks[-1]:
+                chunks.append(carry)
+            else:  # 上一页只有这段引导：不换页，让表格直接接在它后面
+                chunks[-1] = carry
+            words = sum(count_words(x) for x in carry)
         chunks[-1].append(p)
         words += n
+    if len(chunks) > 1 and sum(count_words(p) for p in chunks[-1]) < MIN_TAIL_WORDS:
+        tail = chunks.pop()  # 太短的尾巴并进前一页，不单独占一页
+        chunks[-1] += tail
     return chunks
 
 
+def is_table_or_code(p: str) -> bool:
+    """这一段是不是表格或代码块：切页时整块不拆、引导段跟着它；课件里上下排（D30）。"""
+    return p.lstrip().startswith("```") or all(
+        line.lstrip().startswith("|") for line in p.splitlines()
+    )
+
+
 def _build(index: int, title: str, paras: list[str], base_url: str) -> Section:
-    """组装 Section：收集本节外链（绝对化、去重、编号 L#）和配图（编号 I#），并统计词数。"""
+    """组装 Section：收集本页外链（绝对化、去重、编号 L#）和配图（编号 I#），并统计词数。"""
     links, seen = [], set()
     images = [
         {"id": f"I{i}", "alt": alt, "src": urljoin(base_url, src)}

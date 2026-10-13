@@ -12,10 +12,11 @@ import re
 from typing import Any
 
 from evals.harness import Trial
-from loopback.curriculum import Progress
+from loopback.progress import Progress
 from loopback.trace import ToolCall, build_trace
 
 FIGURES = {"mermaid", "svg", "steps"}
+_SECTION_NO = re.compile(r"第\s*\d+\s*节")  # loopback 的单位叫“页”，提到原文位置要写标题（D29）
 
 
 def tool_calls(trial: Trial) -> list[ToolCall]:
@@ -41,6 +42,17 @@ def _first_sentence(text: str) -> str:
     return re.split(r"[。！？!?]", first, maxsplit=1)[0]
 
 
+def _own_words(trial: Trial, calls: list[ToolCall]) -> str:
+    """教师自己写的文字：终端回复，加上课件的标题和各块的文字（代码插进去的原文不算）。"""
+    parts = [trial.final_text]
+    for t in calls:
+        if t.name == "render_lesson":
+            parts.append(str(t.input.get("title", "")))
+            for b in t.input.get("blocks") or []:
+                parts += [str(b.get(k, "")) for k in ("text", "q", "a", "title", "caption")]
+    return "\n".join(parts)
+
+
 def grade(trial: Trial) -> dict[str, Any]:
     """返回这次试验的全部代码评分。布尔值是检查项，整数是诊断项。"""
     case, calls = trial.case, tool_calls(trial)
@@ -51,6 +63,7 @@ def grade(trial: Trial) -> dict[str, Any]:
         "conclusion_first": 0
         < len(_first_sentence(trial.final_text))
         <= 40,  # 规则 1（放宽到 40 字）
+        "no_section_numbers": not _SECTION_NO.search(_own_words(trial, calls)),
         "n_tool_errors": sum(t.is_error for t in calls),  # 诊断：包括被自我修正掉的错误
         "n_tool_calls": len(calls),
     }

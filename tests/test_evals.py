@@ -1,6 +1,7 @@
 """evals 本身也要被测试：oracle 必须满分、null 必须不及格，评审解析、统计、校准、报告都可复算。"""
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ from evals.stats import noise_floor, summarize, wilson
 from loopback.curriculum import Curriculum
 from loopback.library import Library
 from loopback.llm import Response
+from loopback.materials import SPLIT_VERSION
 
 CUR = Curriculum([ITEM])  # 样例文章 s1：5 节，第 2 节有 3 段
 SECTION = Case("s1-sec2", "s1", "section", section=2)
@@ -56,8 +58,17 @@ def test_trials_are_isolated_and_inputs_match_the_repl(tmp_path, cache) -> None:
     t1 = trial(SECTION, scripted.null(SECTION), tmp_path, cache, rep=1)
     t2 = trial(SECTION, scripted.null(SECTION), tmp_path, cache, rep=2)
     assert t1.home != t2.home and (t1.home / "library" / "s1").exists()
-    assert "第 2 节" in t1.user_input  # 和 REPL 输入 next 时一样
+    assert "第 2 页" in t1.user_input  # 和 REPL 输入 next 时一样
     assert snapshot_materials([SECTION], CUR, cache)["s1"]  # 快照带 hash
+
+
+def test_snapshot_is_resplit_when_the_split_rules_change(cache) -> None:
+    snap = cache / "library" / "s1" / "sections.json"
+    data = json.loads(snap.read_text("utf-8"))
+    data.pop("split_version")  # 旧规则切的快照没有这个字段
+    snap.write_text(json.dumps(data), encoding="utf-8")
+    snapshot_materials([SECTION], CUR, cache)
+    assert json.loads(snap.read_text("utf-8"))["split_version"] == SPLIT_VERSION
 
 
 class FakeJudge:
@@ -141,3 +152,11 @@ def test_packaged_teacher_suite_is_valid() -> None:
     assert len(cases) >= 10 and {c.kind for c in cases} == {"section", "start", "finish"}
     with pytest.raises(ValueError, match="没有"):
         load_suite("teacher", ["nope"])
+
+
+def test_section_numbers_in_the_teachers_own_words_fail(tmp_path, cache) -> None:
+    material = Library(cache, CUR).get("s1")
+    t = trial(SECTION, scripted.oracle(SECTION, material, CUR), tmp_path, cache)
+    assert grade(t)["no_section_numbers"]
+    bad = replace(t, final_text="对照第 14 节的里程碑表就能看出来。")  # 应该写原文标题（D29）
+    assert not grade(bad)["no_section_numbers"] and not grade(bad)["pass"]

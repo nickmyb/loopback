@@ -30,6 +30,7 @@
 
 - 不同的角色只是 AgentSpec 不同（D2）。目前实际运行的只有教师这一个角色。按角色配置模型在 M6c 加上。
 - 学习能力（课程、材料库、进度、课件、反馈）和前端无关，两个前端用的是同一套工具（D20）。
+- 代码里的 section 就是中文说的“页”：loopback 把一篇材料切成一页一页，“节”只用来说原文自己的结构（D29）。
 - 三个事后很难再改的底层决策，在 core 阶段就定了下来：
   1. 会话是只追加的事件日志，messages 只是它的投影（D3）；
   2. LLM 通过接口注入，测试时用 FakeLLM（D4）；
@@ -51,10 +52,13 @@
 | `src/loopback/agents.py` | AgentSpec：prompt 文件、工具集、运行参数和 prompt hash |
 | `src/loopback/store.py` | 状态文件的原子写，以及 version 字段 |
 | `src/loopback/extract.py` | 把网页转成 markdown 正文（D16） |
-| `src/loopback/materials.py` | 把 markdown 切成节：标题路径、链接编号 L#、图片编号 I#、段号 P# |
-| `src/loopback/library.py` | 材料库：抓取、切节、缓存，提供大纲和单节读取 |
-| `src/loopback/repo.py` | 项目自学：把本仓库的文件当材料，源码按函数和类切节（D19） |
-| `src/loopback/curriculum.py` | 课程表（公共课程加个人课程，D23）和学习进度 |
+| `src/loopback/materials.py` | 把 markdown 切成页：表格和代码块不拆、去掉分隔线、短尾巴合并；标题路径、链接编号 L#、图片编号 I#、段号 P# |
+| `src/loopback/fetch.py` | 抓网页：重试、超时，把网络错误转成给模型看的报错 |
+| `src/loopback/library.py` | 材料库：每篇材料第一次读取时切好页，冻结成快照；需要时按最新原文重建（D28） |
+| `src/loopback/reading.py` | 按需读取：给教师看的大纲和单页原文（包在 `<material>` 里） |
+| `src/loopback/repo.py` | 项目自学：把本仓库的文件当材料，源码按函数和类切页（D19）；和网页材料一样有快照（D28） |
+| `src/loopback/curriculum.py` | 课程表：公共课程加个人课程（D23），加载时校验，按标题搜索 |
+| `src/loopback/progress.py` | 学习进度：学到哪了、下一步做什么（`next` 由代码算出） |
 | `src/loopback/learning.py` | 教师用的学习工具：find_material、curriculum_status、fetch_material、read_section、update_progress |
 | `src/loopback/render.py` | 课件的整页：模板、翻页、目录页，以及 render_lesson 工具（D21） |
 | `src/loopback/blocks.py` | 课件的内容块：校验后转成安全的 HTML；mermaid lint |
@@ -88,12 +92,13 @@
 | `.claude/skills/learn/SKILL.md` | Claude Code 的 `/learn`：注入教师 prompt |
 | `.github/workflows/ci.yml` | CI：跑 ruff 和 pytest，不调用付费 API |
 
-## 学一节的数据流
+## 学一页的数据流
 
 ```
 next -> next_step / curriculum_status      where am I? (progress.json)
-     -> fetch_material(id)                 library: fetch -> extract -> split -> cache; returns the outline
-     -> read_section(id, n)                one section, wrapped in <material> (untrusted text)
+     -> fetch_material(id)                 library snapshot: fetch -> extract -> split on first use,
+                                           re-split when (re)starting the item; returns the outline
+     -> read_section(id, n)                one page from the snapshot, wrapped in <material> (untrusted)
      -> explain in the terminal + render_lesson(blocks)
                                            render / blocks / svg -> lessons/<id>/sNN.html, open the browser
      -> update_progress(id, n)             progress.json (atomic write)
@@ -121,7 +126,7 @@ REPL 的每个会话是 `$LOOPBACK_HOME/sessions/<会话>.jsonl`，每行一个�
 |---|---|
 | `progress.json` | 学习进度 |
 | `curriculum.local.yaml` | 个人课程，手写（D23） |
-| `library/<id>/` | 抓来的原文和切好的节。项目自学的条目不缓存，每次实时读取 |
+| `library/<id>/` | 网页原文 `source.md`，以及快照 `sections.json`：切好的页，外加 `source_hash`、`split_version`、`snapshot_at`。项目文件也有快照（D28） |
 | `lessons/<id>/` | HTML 课件和目录页 |
 | `feedback.jsonl` | 打分 |
 | `sessions/` | REPL 的事件日志 |
